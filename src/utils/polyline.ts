@@ -15,7 +15,7 @@ export interface LineStringGeometry {
   coordinates: Coordinate[]
 }
 
-/** Get precision factor for polyline format */
+/** Get precision factor for the specified polyline format */
 function getPrecision(format: PolylineFormat): number {
   return format === 'polyline6' ? 1e6 : 1e5
 }

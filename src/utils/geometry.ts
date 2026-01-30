@@ -5,7 +5,7 @@
 
 import type { Location } from '../types/route'
 
-/** Earth radius in meters */
+/** Earth radius in meters (WGS84 mean radius) */
 const EARTH_RADIUS = 6371000
 
 /** Convert degrees to radians */
