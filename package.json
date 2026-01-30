@@ -1,0 +1,128 @@
+{
+  "name": "@jansoft/mbujkanji-valhalla-wasm",
+  "version": "0.1.0",
+  "description": "Valhalla routing engine compiled to WebAssembly for offline-first web applications",
+  "keywords": [
+    "valhalla",
+    "routing",
+    "wasm",
+    "webassembly",
+    "offline",
+    "maps",
+    "navigation",
+    "turn-by-turn",
+    "directions",
+    "osm",
+    "openstreetmap"
+  ],
+  "homepage": "https://github.com/jansoft/mbujkanji-valhalla-wasm#readme",
+  "bugs": {
+    "url": "https://github.com/jansoft/mbujkanji-valhalla-wasm/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jansoft/mbujkanji-valhalla-wasm.git"
+  },
+  "license": "MIT",
+  "author": "JanSoft",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./cache": {
+      "import": {
+        "types": "./dist/cache.d.ts",
+        "default": "./dist/cache.js"
+      },
+      "require": {
+        "types": "./dist/cache.d.cts",
+        "default": "./dist/cache.cjs"
+      }
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "wasm",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "build:wasm": "cd native && ./build-wasm.sh",
+    "dev": "next dev",
+    "dev:lib": "tsup --watch",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@edge-runtime/vm": "latest",
+    "@jansoft/mbujkanji-valhalla-wasm": "latest",
+    "@microsoft/api-extractor": "latest",
+    "@opentelemetry/api": "latest",
+    "@swc/core": "latest",
+    "@vitejs/plugin-react": "5.1.2",
+    "@vitest/browser-playwright": "latest",
+    "@vitest/browser-preview": "latest",
+    "@vitest/browser-webdriverio": "latest",
+    "@vitest/ui": "latest",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "geojson": "0.5.0",
+    "happy-dom": "latest",
+    "jiti": "latest",
+    "jsdom": "latest",
+    "less": "latest",
+    "lightningcss": "latest",
+    "lucide-react": "0.563.0",
+    "mapbox-gl": "latest",
+    "maplibre-gl": "5.17.0",
+    "next": "16.1.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-map-gl": "8.1.0",
+    "sass": "latest",
+    "sass-embedded": "latest",
+    "stylus": "latest",
+    "sugarss": "latest",
+    "tailwind-merge": "3.4.0",
+    "tailwindcss-animate": "1.0.7",
+    "terser": "latest",
+    "tsx": "latest",
+    "tw-animate-css": "^1.2.0",
+    "vite": "7.3.1",
+    "yaml": "latest"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.14",
+    "@types/node": "^22.0.0",
+    "@types/react": "19.2.10",
+    "@types/react-dom": "19.2.3",
+    "postcss": "8.5.6",
+    "tailwindcss": "^4.1.9",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "peerDependencies": {},
+  "optionalDependencies": {
+    "idb": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

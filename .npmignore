@@ -1,0 +1,35 @@
+# Source (use dist instead)
+src/
+
+# Build tooling
+native/
+build/
+artifacts/
+
+# Tests
+test/
+*.test.ts
+vitest.config.ts
+coverage/
+
+# Examples
+examples/
+
+# Config files
+tsconfig.json
+tsup.config.ts
+.eslintrc*
+.prettierrc*
+.editorconfig
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# IDE
+.idea/
+.vscode/
+
+# Development
+*.log
+.env*

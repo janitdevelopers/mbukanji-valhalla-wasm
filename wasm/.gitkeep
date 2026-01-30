@@ -1,0 +1,8 @@
+# WASM build artifacts directory
+# 
+# Run `npm run build:wasm` or `cd native && ./build-wasm.sh` to generate:
+#   - valhalla.wasm
+#   - valhalla.js
+#   - metadata.json
+#
+# These files are gitignored and should be built locally or in CI.

@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# WASM artifacts (built externally)
+wasm/*.wasm
+wasm/*.js
+wasm/*.data
+artifacts/
+
+# Test fixtures (download separately)
+test/fixtures/*.tar
+test/fixtures/*.tar.gz
+test/fixtures/*.pbf
+!test/fixtures/.gitkeep
+!test/fixtures/README.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Coverage
+coverage/
+
+# Examples build output
+examples/*/dist/
+examples/*/node_modules/
+examples/*/.next/
+
+# Next.js (for examples)
+.next/
+out/
+
+# Vercel
+.vercel

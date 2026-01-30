@@ -1,0 +1,49 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,5 +1,15 @@
+ cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
+ 
++# Emscripten-specific configuration
++if(EMSCRIPTEN)
++  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s USE_ZLIB=1 -s USE_PTHREADS=0")
++  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ALLOW_MEMORY_GROWTH=1")
++  set(ENABLE_TOOLS OFF CACHE BOOL "" FORCE)
++  set(ENABLE_DATA_TOOLS OFF CACHE BOOL "" FORCE)
++  set(ENABLE_SERVICES OFF CACHE BOOL "" FORCE)
++endif()
++
+ project(valhalla LANGUAGES CXX C)
+ 
+ include(GNUInstallDirs)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -100,6 +100,12 @@ set_target_properties(valhalla PROPERTIES
+   SOVERSION ${VALHALLA_VERSION_MAJOR}
+   PUBLIC_HEADER "${valhalla_hdrs}")
+ 
++# Emscripten: disable threading
++if(EMSCRIPTEN)
++  target_compile_definitions(valhalla PRIVATE BOOST_SP_DISABLE_THREADS)
++  target_compile_options(valhalla PRIVATE -fno-exceptions -fno-rtti)
++endif()
++
+ target_compile_definitions(valhalla
+   PUBLIC
+     $<$<BOOL:${WIN32}>:NOGDI>
+diff --git a/valhalla/midgard/logging.h b/valhalla/midgard/logging.h
+--- a/valhalla/midgard/logging.h
++++ b/valhalla/midgard/logging.h
+@@ -7,6 +7,11 @@
+ #include <string>
+ #include <unordered_map>
+ 
++// Emscripten: disable threading in logging
++#ifdef __EMSCRIPTEN__
++#define LOGGING_LEVEL_NONE
++#endif
++
+ namespace valhalla {
+ namespace midgard {
+ namespace logging {

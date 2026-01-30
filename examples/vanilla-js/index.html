@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Valhalla WASM - Vanilla JS Example</title>
+  <link href="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+    
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+    
+    .sidebar {
+      width: 360px;
+      background: #1e293b;
+      padding: 24px;
+      overflow-y: auto;
+      border-right: 1px solid #334155;
+    }
+    
+    .sidebar h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #f8fafc;
+    }
+    
+    .sidebar p {
+      font-size: 0.875rem;
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+    
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.875rem;
+    }
+    
+    .status.loading {
+      background: #1e3a5f;
+      border: 1px solid #3b82f6;
+    }
+    
+    .status.ready {
+      background: #14532d;
+      border: 1px solid #22c55e;
+    }
+    
+    .status.error {
+      background: #450a0a;
+      border: 1px solid #ef4444;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #cbd5e1;
+    }
+    
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 0.875rem;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+    
+    .coordinates {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    
+    button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 6px;
+      border: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    button.primary {
+      background: #3b82f6;
+      color: white;
+    }
+    
+    button.primary:hover {
+      background: #2563eb;
+    }
+    
+    button.primary:disabled {
+      background: #475569;
+      cursor: not-allowed;
+    }
+    
+    button.secondary {
+      background: #334155;
+      color: #e2e8f0;
+      margin-top: 8px;
+    }
+    
+    button.secondary:hover {
+      background: #475569;
+    }
+    
+    .route-info {
+      margin-top: 24px;
+      padding: 16px;
+      background: #0f172a;
+      border-radius: 8px;
+      border: 1px solid #334155;
+    }
+    
+    .route-info h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #f8fafc;
+    }
+    
+    .route-stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #334155;
+      font-size: 0.875rem;
+    }
+    
+    .route-stat:last-child {
+      border-bottom: none;
+    }
+    
+    .route-stat .label {
+      color: #94a3b8;
+    }
+    
+    .route-stat .value {
+      font-weight: 500;
+      color: #f8fafc;
+    }
+    
+    .maneuvers {
+      margin-top: 16px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .maneuver {
+      padding: 10px;
+      background: #1e293b;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 0.813rem;
+    }
+    
+    .maneuver .instruction {
+      color: #f8fafc;
+      margin-bottom: 4px;
+    }
+    
+    .maneuver .meta {
+      color: #64748b;
+      font-size: 0.75rem;
+    }
+    
+    #map {
+      flex: 1;
+      height: 100vh;
+    }
+    
+    .maplibregl-popup-content {
+      background: #1e293b;
+      color: #f8fafc;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    
+    .maplibregl-popup-tip {
+      border-top-color: #1e293b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <h1>Valhalla WASM</h1>
+      <p>Offline routing with WebAssembly</p>
+      
+      <div id="status" class="status loading">
+        Initializing...
+      </div>
+      
+      <div class="form-group">
+        <label>Tiles URL</label>
+        <input type="text" id="tilesUrl" placeholder="https://your-cdn.com/tiles.tar" />
+      </div>
+      
+      <button class="secondary" onclick="loadTiles()">Load Tiles</button>
+      
+      <hr style="margin: 24px 0; border: none; border-top: 1px solid #334155;" />
+      
+      <div class="form-group">
+        <label>Origin</label>
+        <div class="coordinates">
+          <input type="number" id="originLat" placeholder="Latitude" step="0.0001" />
+          <input type="number" id="originLon" placeholder="Longitude" step="0.0001" />
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Destination</label>
+        <div class="coordinates">
+          <input type="number" id="destLat" placeholder="Latitude" step="0.0001" />
+          <input type="number" id="destLon" placeholder="Longitude" step="0.0001" />
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Travel Mode</label>
+        <select id="costing">
+          <option value="auto">Driving</option>
+          <option value="bicycle">Bicycle</option>
+          <option value="pedestrian">Walking</option>
+          <option value="truck">Truck</option>
+        </select>
+      </div>
+      
+      <button id="routeBtn" class="primary" onclick="calculateRoute()" disabled>
+        Calculate Route
+      </button>
+      
+      <button class="secondary" onclick="clearRoute()">
+        Clear
+      </button>
+      
+      <div id="routeInfo" class="route-info" style="display: none;">
+        <h3>Route Summary</h3>
+        <div class="route-stat">
+          <span class="label">Distance</span>
+          <span class="value" id="routeDistance">-</span>
+        </div>
+        <div class="route-stat">
+          <span class="label">Duration</span>
+          <span class="value" id="routeDuration">-</span>
+        </div>
+        <div class="maneuvers" id="maneuvers"></div>
+      </div>
+    </div>
+    
+    <div id="map"></div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

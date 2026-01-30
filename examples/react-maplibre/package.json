@@ -1,0 +1,26 @@
+{
+  "name": "valhalla-wasm-react-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "React + MapLibre example using @jansoft/mbujkanji-valhalla-wasm",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@jansoft/mbujkanji-valhalla-wasm": "file:../..",
+    "maplibre-gl": "^4.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-map-gl": "^7.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.0.0"
+  }
+}

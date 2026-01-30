@@ -1,0 +1,19 @@
+{
+  "name": "valhalla-wasm-vanilla-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vanilla JavaScript example using @jansoft/mbujkanji-valhalla-wasm",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@jansoft/mbujkanji-valhalla-wasm": "file:../..",
+    "maplibre-gl": "^4.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
