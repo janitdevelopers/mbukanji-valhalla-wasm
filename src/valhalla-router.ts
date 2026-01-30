@@ -45,7 +45,7 @@ const DEFAULT_CONFIG: Required<RouterConfig> = {
  *
  * @example
  * ```typescript
- * import { createRouter } from '@mbujkanji/valhalla-wasm'
+ * import { createRouter } from '@jansoft/mbujkanji-valhalla-wasm'
  *
  * const router = createRouter()
  * await router.init({ wasmPath: '/valhalla.wasm' })
@@ -487,7 +487,7 @@ export class ValhallaRouter {
  *
  * @example
  * ```typescript
- * import { createRouter } from '@mbujkanji/valhalla-wasm'
+ * import { createRouter } from '@jansoft/mbujkanji-valhalla-wasm'
  *
  * const router = createRouter({
  *   defaultCosting: 'auto',

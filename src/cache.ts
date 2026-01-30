@@ -58,7 +58,7 @@ const DEFAULT_OPTIONS: Required<CacheOptions> = {
  *
  * @example
  * ```typescript
- * import { TileCache } from '@mbujkanji/valhalla-wasm/cache'
+ * import { TileCache } from '@jansoft/mbujkanji-valhalla-wasm/cache'
  *
  * const cache = new TileCache()
  * await cache.init()
