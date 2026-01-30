@@ -1,5 +1,6 @@
 /**
  * Geometry utilities for coordinate calculations
+ * @packageDocumentation
  */
 
 import type { Location } from '../types/route'
