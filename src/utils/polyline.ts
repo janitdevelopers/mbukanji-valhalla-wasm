@@ -2,6 +2,7 @@
  * Polyline encoding/decoding utilities
  * Supports both polyline5 (1e5) and polyline6 (1e6) precision
  * @packageDocumentation
+ * @module polyline
  */
 
 export type PolylineFormat = 'polyline5' | 'polyline6'

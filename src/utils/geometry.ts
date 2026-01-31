@@ -1,6 +1,7 @@
 /**
  * Geometry utilities for coordinate calculations
  * @packageDocumentation
+ * @module geometry
  */
 
 import type { Location } from '../types/route'
