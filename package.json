@@ -15,13 +15,13 @@
     "osm",
     "openstreetmap"
   ],
-  "homepage": "https://github.com/jansoft/mbujkanji-valhalla-wasm#readme",
+  "homepage": "https://github.com/janitdevelopers/mbukanji-valhalla-wasm#readme",
   "bugs": {
-    "url": "https://github.com/jansoft/mbujkanji-valhalla-wasm/issues"
+    "url": "https://github.com/janitdevelopers/mbukanji-valhalla-wasm/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/jansoft/mbujkanji-valhalla-wasm.git"
+    "url": "https://github.com/janitdevelopers/mbukanji-valhalla-wasm.git"
   },
   "license": "MIT",
   "author": "JanSoft",
