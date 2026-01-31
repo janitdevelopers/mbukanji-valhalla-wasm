@@ -11,13 +11,13 @@ This directory contains everything needed to compile Valhalla routing engine to 
 
 ## Quick Start
 
-```bash
+\`\`\`bash
 # Make build script executable
 chmod +x build-wasm.sh
 
 # Run the build
 ./build-wasm.sh
-```
+\`\`\`
 
 Output files will be in `../wasm/`:
 - `valhalla.wasm` - The WebAssembly module (~15MB)
@@ -26,7 +26,7 @@ Output files will be in `../wasm/`:
 
 ## Build Options
 
-```bash
+\`\`\`bash
 # Specify Valhalla version
 ./build-wasm.sh --version 3.4.0
 
@@ -35,7 +35,7 @@ Output files will be in `../wasm/`:
 
 # Show help
 ./build-wasm.sh --help
-```
+\`\`\`
 
 ## Files
 
@@ -60,15 +60,15 @@ Output files will be in `../wasm/`:
 
 Edit the `VALHALLA_VERSION` in `Dockerfile` or use the `--version` flag:
 
-```bash
+\`\`\`bash
 ./build-wasm.sh --version 3.5.0
-```
+\`\`\`
 
 ### Modifying Build Flags
 
 Edit the `emcmake cmake` and `em++` commands in `Dockerfile`:
 
-```dockerfile
+\`\`\`dockerfile
 # Memory settings
 -s ALLOW_MEMORY_GROWTH=1
 -s MAXIMUM_MEMORY=4GB
@@ -79,48 +79,48 @@ Edit the `emcmake cmake` and `em++` commands in `Dockerfile`:
 # Module format
 -s MODULARIZE=1
 -s EXPORT_NAME="ValhallaModule"
-```
+\`\`\`
 
 ### Adding Features
 
 To expose additional Valhalla features, edit `wasm_bindings.cpp`:
 
-```cpp
+\`\`\`cpp
 EMSCRIPTEN_BINDINGS(valhalla_wasm) {
     class_<ValhallaRouter>("ValhallaRouter")
         .function("route", &ValhallaRouter::route)
         .function("isochrone", &ValhallaRouter::isochrone)  // Add new method
         // ...
 }
-```
+\`\`\`
 
 ## Troubleshooting
 
 ### Build Fails with Memory Error
 
 Increase Docker memory limit:
-```bash
+\`\`\`bash
 docker system prune -a
 # Then in Docker Desktop, increase memory to 16GB
-```
+\`\`\`
 
 ### "File not found" Errors
 
 Ensure you're running from the `native/` directory:
-```bash
+\`\`\`bash
 cd native
 ./build-wasm.sh
-```
+\`\`\`
 
 ### Slow Build
 
 First build downloads ~5GB of dependencies. Subsequent builds use Docker cache.
 
 For faster iteration during development:
-```bash
+\`\`\`bash
 # Enter the container interactively
 docker run -it --rm -v $(pwd):/workspace valhalla-wasm-builder bash
-```
+\`\`\`
 
 ## Architecture Notes
 

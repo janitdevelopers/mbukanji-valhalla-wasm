@@ -8,7 +8,7 @@ Download these files before running integration tests:
 
 ### Monaco Tiles (Small region for testing)
 
-```bash
+\`\`\`bash
 # Download Monaco OSM extract
 curl -L https://download.geofabrik.de/europe/monaco-latest.osm.pbf -o monaco.osm.pbf
 
@@ -17,18 +17,18 @@ valhalla_build_tiles -c valhalla.json monaco.osm.pbf
 
 # Package tiles
 tar -cvf monaco.tiles.tar tiles/
-```
+\`\`\`
 
 ### Minimal Test Tiles
 
 For unit tests, you can create minimal mock tiles:
 
-```bash
+\`\`\`bash
 # Create empty tiles directory structure
 mkdir -p tiles/0/000/000
 touch tiles/0/000/000/000.gph
 tar -cvf minimal.tiles.tar tiles/
-```
+\`\`\`
 
 ## File Descriptions
 
