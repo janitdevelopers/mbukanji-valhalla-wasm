@@ -5,7 +5,12 @@ export default defineConfig([
   {
     entry: ['src/index.ts'],
     format: ['esm', 'cjs'],
-    dts: true,
+    dts: {
+      compilerOptions: {
+        noUnusedLocals: false,
+        noUnusedParameters: false,
+      },
+    },
     sourcemap: true,
     clean: true,
     treeshake: true,
@@ -18,7 +23,12 @@ export default defineConfig([
   {
     entry: ['src/cache.ts'],
     format: ['esm', 'cjs'],
-    dts: true,
+    dts: {
+      compilerOptions: {
+        noUnusedLocals: false,
+        noUnusedParameters: false,
+      },
+    },
     sourcemap: true,
     treeshake: true,
     splitting: false,

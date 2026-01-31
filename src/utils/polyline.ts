@@ -1,6 +1,8 @@
 /**
  * Polyline encoding/decoding utilities
  * Supports both polyline5 (1e5) and polyline6 (1e6) precision
+ * @packageDocumentation
+ * @module polyline
  */
 
 export type PolylineFormat = 'polyline5' | 'polyline6'
@@ -14,7 +16,7 @@ export interface LineStringGeometry {
   coordinates: Coordinate[]
 }
 
-/** Get precision factor for polyline format */
+/** Get precision factor for the specified polyline format */
 function getPrecision(format: PolylineFormat): number {
   return format === 'polyline6' ? 1e6 : 1e5
 }
@@ -36,7 +38,6 @@ export function decodePolyline(
   let lng = 0
 
   while (index < encoded.length) {
-    // Decode latitude
     let shift = 0
     let result = 0
     let byte: number
@@ -50,7 +51,6 @@ export function decodePolyline(
     const deltaLat = result & 1 ? ~(result >> 1) : result >> 1
     lat += deltaLat
 
-    // Decode longitude
     shift = 0
     result = 0
 
@@ -63,7 +63,6 @@ export function decodePolyline(
     const deltaLng = result & 1 ? ~(result >> 1) : result >> 1
     lng += deltaLng
 
-    // Return as [lng, lat] (GeoJSON format)
     coordinates.push([lng / precision, lat / precision])
   }
 

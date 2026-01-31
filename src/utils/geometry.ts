@@ -1,10 +1,12 @@
 /**
  * Geometry utilities for coordinate calculations
+ * @packageDocumentation
+ * @module geometry
  */
 
 import type { Location } from '../types/route'
 
-/** Earth radius in meters */
+/** Earth radius in meters (WGS84 mean radius) */
 const EARTH_RADIUS = 6371000
 
 /** Convert degrees to radians */
@@ -177,7 +179,6 @@ export function boundingBox(
   }
 
   if (padding > 0) {
-    // Approximate degrees per meter at center latitude
     const centerLat = (minLat + maxLat) / 2
     const latDegPerMeter = 1 / 111320
     const lonDegPerMeter = 1 / (111320 * Math.cos(toRadians(centerLat)))
