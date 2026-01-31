@@ -12,17 +12,17 @@ A standalone, framework-agnostic NPM package that brings [Valhalla](https://gith
 
 ## Installation
 
-```bash
+\`\`\`bash
 npm install @jansoft/mbujkanji-valhalla-wasm
 # or
 yarn add @jansoft/mbujkanji-valhalla-wasm
 # or
 pnpm add @jansoft/mbujkanji-valhalla-wasm
-```
+\`\`\`
 
 ## Quick Start
 
-```typescript
+\`\`\`typescript
 import { createRouter } from '@jansoft/mbujkanji-valhalla-wasm';
 
 // Create and initialize the router
@@ -48,7 +48,7 @@ console.log(result.trip);
 
 // Clean up when done
 router.dispose();
-```
+\`\`\`
 
 ## API Reference
 
@@ -56,13 +56,13 @@ router.dispose();
 
 Factory function to create a new router instance.
 
-```typescript
+\`\`\`typescript
 interface RouterOptions {
   wasmUrl?: string;           // Custom URL for valhalla.wasm
   workerUrl?: string;         // Custom URL for worker script
   debug?: boolean;            // Enable debug logging
 }
-```
+\`\`\`
 
 ### `ValhallaRouter`
 
@@ -82,7 +82,7 @@ Convenience method to fetch and load tiles from a URL.
 
 Calculate a route between locations.
 
-```typescript
+\`\`\`typescript
 interface RouteRequest {
   locations: Array<{
     lat: number;
@@ -98,7 +98,7 @@ interface RouteRequest {
   language?: string;
   alternates?: number;
 }
-```
+\`\`\`
 
 #### `isReady(): boolean`
 
@@ -114,7 +114,7 @@ Clean up resources. Call when done with the router.
 
 ### Utilities
 
-```typescript
+\`\`\`typescript
 import { 
   decodePolyline, 
   encodePolyline,
@@ -134,13 +134,13 @@ const distance = haversineDistance(
   { lat: 4.0511, lon: 9.7679 },
   { lat: 3.8480, lon: 11.5021 }
 );
-```
+\`\`\`
 
 ### Optional: Tile Caching
 
 For offline-first applications, use the optional cache module:
 
-```typescript
+\`\`\`typescript
 import { TileCache } from '@jansoft/mbujkanji-valhalla-wasm/cache';
 
 const cache = new TileCache({ dbName: 'my-app-tiles' });
@@ -157,7 +157,7 @@ const tiles = await cache.getTiles('cameroon');
 
 // List cached regions
 const regions = await cache.listRegions();
-```
+\`\`\`
 
 ## Building WASM from Source
 
@@ -165,11 +165,11 @@ The package requires a compiled `valhalla.wasm` file. See [native/README.md](./n
 
 ### Quick Build (Docker)
 
-```bash
+\`\`\`bash
 cd native
 docker build -t valhalla-wasm-builder .
 docker run --rm -v $(pwd)/../wasm:/output valhalla-wasm-builder
-```
+\`\`\`
 
 ## Creating Routing Tiles
 
@@ -177,7 +177,7 @@ Valhalla requires routing tiles built from OpenStreetMap data. Here's how to cre
 
 ### Option 1: Use Valhalla Docker Image
 
-```bash
+\`\`\`bash
 # Download OSM extract (example: Cameroon)
 wget https://download.geofabrik.de/africa/cameroon-latest.osm.pbf
 
@@ -189,7 +189,7 @@ docker run -it --rm \
 
 # Package tiles for web delivery
 tar -cvf cameroon-tiles.tar valhalla_tiles/
-```
+\`\`\`
 
 ### Option 2: Build Locally
 
@@ -211,10 +211,10 @@ See the [examples/](./examples/) directory for complete examples:
 
 Requires WebAssembly and SharedArrayBuffer support. For SharedArrayBuffer, ensure proper COOP/COEP headers:
 
-```
+\`\`\`
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
-```
+\`\`\`
 
 ## Bundle Size
 
