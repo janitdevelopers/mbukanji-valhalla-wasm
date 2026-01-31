@@ -37,7 +37,6 @@ export function decodePolyline(
   let lng = 0
 
   while (index < encoded.length) {
-    // Decode latitude
     let shift = 0
     let result = 0
     let byte: number
@@ -51,7 +50,6 @@ export function decodePolyline(
     const deltaLat = result & 1 ? ~(result >> 1) : result >> 1
     lat += deltaLat
 
-    // Decode longitude
     shift = 0
     result = 0
 
@@ -64,7 +62,6 @@ export function decodePolyline(
     const deltaLng = result & 1 ? ~(result >> 1) : result >> 1
     lng += deltaLng
 
-    // Return as [lng, lat] (GeoJSON format)
     coordinates.push([lng / precision, lat / precision])
   }
 

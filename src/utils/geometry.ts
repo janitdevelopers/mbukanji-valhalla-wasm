@@ -178,7 +178,6 @@ export function boundingBox(
   }
 
   if (padding > 0) {
-    // Approximate degrees per meter at center latitude
     const centerLat = (minLat + maxLat) / 2
     const latDegPerMeter = 1 / 111320
     const lonDegPerMeter = 1 / (111320 * Math.cos(toRadians(centerLat)))
