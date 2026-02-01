@@ -5,6 +5,7 @@
 
 import type { ValhallaInitOptions, LoadProgress } from '../types/config'
 import { ValhallaError, ValhallaErrorCode, createError } from '../types/errors'
+import { getWasmPaths } from './wasm-paths'
 
 /** WASM Module interface - matches Emscripten output */
 export interface ValhallaWasmModule {
@@ -95,13 +96,47 @@ async function loadWasmWithProgress(
 ): Promise<ArrayBuffer> {
   reportProgress(onProgress, 'wasm', 0, 'Starting WASM download...')
 
-  const response = await fetchFn(wasmPath)
+  let response: Response
+  try {
+    response = await fetchFn(wasmPath)
+  } catch (error) {
+    // Provide helpful error message for common issues
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    let helpfulMessage = `Failed to load WASM from: ${wasmPath}\n`
+    
+    if (errorMessage.includes('CORS') || errorMessage.includes('cross-origin')) {
+      helpfulMessage += '\nCORS Error: The WASM file cannot be loaded due to CORS restrictions.\n'
+      helpfulMessage += 'Solutions:\n'
+      helpfulMessage += '  1. Ensure your server sends proper CORS headers\n'
+      helpfulMessage += '  2. Use a bundler (Vite, Webpack) that handles WASM files automatically\n'
+      helpfulMessage += '  3. Copy WASM files to your public folder and reference them there\n'
+    } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('network')) {
+      helpfulMessage += '\nNetwork Error: Could not fetch the WASM file.\n'
+      helpfulMessage += 'Solutions:\n'
+      helpfulMessage += '  1. Check that the WASM file exists at the specified path\n'
+      helpfulMessage += '  2. Verify the path is correct (use getWasmPaths() to see auto-detected paths)\n'
+      helpfulMessage += '  3. For Node.js, ensure fetch is available (Node 18+ or provide fetch polyfill)\n'
+    } else {
+      helpfulMessage += `\nError: ${errorMessage}\n`
+    }
+    
+    throw createError(ValhallaErrorCode.WASM_LOAD_FAILED, helpfulMessage)
+  }
   
   if (!response.ok) {
-    throw createError(
-      ValhallaErrorCode.WASM_LOAD_FAILED,
-      `Failed to fetch WASM: ${response.status} ${response.statusText}`
-    )
+    let errorMessage = `Failed to fetch WASM: ${response.status} ${response.statusText}\n`
+    errorMessage += `Path: ${wasmPath}\n`
+    
+    if (response.status === 404) {
+      errorMessage += '\nFile not found. Possible solutions:\n'
+      errorMessage += '  1. Run "npm run build:wasm" to build WASM files\n'
+      errorMessage += '  2. Ensure WASM files are copied to dist/ during build\n'
+      errorMessage += '  3. Check that the path is correct\n'
+    } else if (response.status === 403) {
+      errorMessage += '\nAccess forbidden. Check file permissions and CORS settings.\n'
+    }
+    
+    throw createError(ValhallaErrorCode.WASM_LOAD_FAILED, errorMessage)
   }
 
   const contentLength = response.headers.get('content-length')
@@ -176,14 +211,19 @@ export async function loadWasmModule(
 async function doLoadWasmModule(
   options: ValhallaInitOptions
 ): Promise<ValhallaWasmModule> {
+  // Resolve WASM paths (use custom if provided, otherwise auto-detect)
+  const defaultPaths = getWasmPaths()
   const {
-    wasmPath = '/valhalla.wasm',
-    jsGluePath,
+    wasmPath = defaultPaths.wasm,
+    jsGluePath,  // Only use default if not explicitly provided
     fetchFn = fetch,
     onProgress,
     onError,
     onReady,
   } = options
+  
+  // Use default JS path only if jsGluePath is not provided
+  const resolvedJsGluePath = jsGluePath ?? defaultPaths.js
 
   // Check WASM support
   if (!isWasmSupported()) {
@@ -195,13 +235,15 @@ async function doLoadWasmModule(
   try {
     reportProgress(onProgress, 'init', 0, 'Initializing WASM...')
 
-    // If a JS glue path is provided, dynamically import it
+    // If a JS glue path is provided (or auto-detected), dynamically import it
     // This is the Emscripten-generated JS file
-    if (jsGluePath) {
+    if (resolvedJsGluePath) {
       reportProgress(onProgress, 'init', 10, 'Loading WASM glue code...')
       
-      // Dynamic import of the glue code
-      const glueModule = await import(/* webpackIgnore: true */ jsGluePath)
+      // Dynamic import of the glue code with bundler ignore comments
+      const glueModule = await import(
+        /* @vite-ignore */ /* webpackIgnore: true */ resolvedJsGluePath
+      )
       const factory: ValhallaWasmFactory = glueModule.default || glueModule
       
       reportProgress(onProgress, 'init', 30, 'Instantiating WASM module...')

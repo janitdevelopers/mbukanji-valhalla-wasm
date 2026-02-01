@@ -47,14 +47,16 @@
         "types": "./dist/cache.d.cts",
         "default": "./dist/cache.cjs"
       }
-    }
+    },
+    "./valhalla.wasm": "./dist/valhalla.wasm",
+    "./valhalla.js": "./dist/valhalla.js",
+    "./package.json": "./package.json"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "wasm",
     "README.md",
     "LICENSE"
   ],
@@ -64,7 +66,7 @@
     "dev": "next dev",
     "dev:lib": "tsup --watch",
     "lint": "eslint src/",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run build && node scripts/verify-wasm.js",
     "test": "vitest",
     "test:run": "vitest run",
     "typecheck": "tsc --noEmit"

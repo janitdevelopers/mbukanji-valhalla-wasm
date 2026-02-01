@@ -155,9 +155,8 @@ async function initRouter() {
   try {
     router = createRouter({ verbose: true })
 
+    // Auto-detects WASM paths - no configuration needed!
     await router.init({
-      wasmPath: '/valhalla.wasm',
-      jsGluePath: '/valhalla.js',
       onProgress: (p) => {
         updateStatus(`${p.message} (${p.percent}%)`, 'loading')
       },

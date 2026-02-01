@@ -8,9 +8,9 @@
  * ```typescript
  * import { createRouter } from '@jansoft/mbujkanji-valhalla-wasm'
  *
- * // Create and initialize router
+ * // Create and initialize router (auto-detects WASM paths)
  * const router = createRouter()
- * await router.init({ wasmPath: '/valhalla.wasm' })
+ * await router.init()  // No paths needed - auto-detected!
  *
  * // Load your own tiles (BYOT - Bring Your Own Tiles)
  * const response = await fetch('/tiles/my-region.tar')
@@ -31,6 +31,24 @@
  *
  * // Cleanup when done
  * router.dispose()
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Custom WASM paths (for advanced use cases)
+ * import { createRouter, getWasmPaths } from '@jansoft/mbujkanji-valhalla-wasm'
+ *
+ * // Get auto-detected paths
+ * const paths = getWasmPaths()
+ * console.log('WASM path:', paths.wasm)
+ * console.log('JS path:', paths.js)
+ *
+ * // Or provide custom paths
+ * const router = createRouter()
+ * await router.init({
+ *   wasmPath: 'https://cdn.example.com/valhalla.wasm',
+ *   jsGluePath: 'https://cdn.example.com/valhalla.js'
+ * })
  * ```
  *
  * @packageDocumentation
@@ -72,6 +90,16 @@ export {
   createError,
   isValhallaError,
 } from './types/errors'
+
+// WASM path utilities
+export {
+  getWasmPaths,
+  DEFAULT_WASM_PATHS,
+  validateWasmPaths,
+  isBundlerEnvironment,
+  isWorkerEnvironment,
+  type WasmPaths,
+} from './internal/wasm-paths'
 
 // Utilities
 export {

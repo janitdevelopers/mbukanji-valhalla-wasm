@@ -25,9 +25,9 @@ pnpm add @jansoft/mbujkanji-valhalla-wasm
 \`\`\`typescript
 import { createRouter } from '@jansoft/mbujkanji-valhalla-wasm';
 
-// Create and initialize the router
+// Create and initialize the router (WASM paths auto-detected!)
 const router = createRouter();
-await router.init();
+await router.init();  // No paths needed - it just works!
 
 // Load tiles (you provide these)
 const tilesResponse = await fetch('/path/to/your/tiles.tar');
@@ -50,25 +50,146 @@ console.log(result.trip);
 router.dispose();
 \`\`\`
 
+## Installation & Setup
+
+### Automatic Path Resolution (Default)
+
+The package automatically detects WASM file paths based on your environment. **No configuration needed!**
+
+\`\`\`typescript
+// This just works in most environments
+const router = createRouter();
+await router.init();
+\`\`\`
+
+Works automatically in:
+- ✅ Vite
+- ✅ Webpack
+- ✅ Next.js
+- ✅ Node.js (ESM and CJS)
+- ✅ Browser (with bundlers)
+- ✅ Most modern build tools
+
+### Custom Paths (Advanced)
+
+For CDN usage or custom locations, you can provide explicit paths:
+
+\`\`\`typescript
+// Custom paths from CDN
+await router.init({
+  wasmPath: 'https://cdn.example.com/valhalla.wasm',
+  jsGluePath: 'https://cdn.example.com/valhalla.js'
+});
+
+// Or inspect auto-detected paths
+import { getWasmPaths } from '@jansoft/mbujkanji-valhalla-wasm';
+const paths = getWasmPaths();
+console.log('WASM:', paths.wasm);
+console.log('JS:', paths.js);
+\`\`\`
+
+### Framework-Specific Setup
+
+#### Vite
+
+No special configuration needed! The package works out of the box.
+
+\`\`\`typescript
+// vite.config.ts - No changes needed
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  // Package handles WASM automatically
+})
+\`\`\`
+
+#### Next.js
+
+Works automatically with both App Router and Pages Router.
+
+\`\`\`typescript
+// app/page.tsx or pages/index.tsx
+'use client'  // If using App Router
+
+import { createRouter } from '@jansoft/mbujkanji-valhalla-wasm'
+
+export default async function Page() {
+  const router = createRouter()
+  await router.init()  // Auto-detects paths
+  // ...
+}
+\`\`\`
+
+#### Webpack
+
+No special configuration needed. Webpack handles WASM files automatically.
+
+#### Node.js
+
+For server-side usage, ensure Node.js 18+ (has native fetch) or provide a fetch polyfill:
+
+\`\`\`typescript
+// Node.js 18+
+import { createRouter } from '@jansoft/mbujkanji-valhalla-wasm'
+const router = createRouter()
+await router.init()  // Works with native fetch
+
+// Node.js < 18 (with polyfill)
+import fetch from 'node-fetch'
+const router = createRouter()
+await router.init({ fetchFn: fetch })
+\`\`\`
+
 ## API Reference
 
-### `createRouter(options?: RouterOptions): ValhallaRouter`
+### `createRouter(options?: RouterConfig): ValhallaRouter`
 
 Factory function to create a new router instance.
 
 \`\`\`typescript
-interface RouterOptions {
-  wasmUrl?: string;           // Custom URL for valhalla.wasm
-  workerUrl?: string;         // Custom URL for worker script
-  debug?: boolean;            // Enable debug logging
+interface RouterConfig {
+  defaultCosting?: 'auto' | 'bicycle' | 'pedestrian' | 'truck';
+  defaultUnits?: 'kilometers' | 'miles';
+  defaultLanguage?: string;
+  verbose?: boolean;  // Enable debug logging
 }
 \`\`\`
 
 ### `ValhallaRouter`
 
-#### `init(): Promise<void>`
+#### `init(options?: ValhallaInitOptions): Promise<void>`
 
 Initialize the WASM module. Must be called before any other methods.
+
+**Options** (all optional - paths are auto-detected by default):
+
+\`\`\`typescript
+interface ValhallaInitOptions {
+  wasmPath?: string;      // Custom WASM file path (auto-detected if not provided)
+  jsGluePath?: string;    // Custom JS glue path (auto-detected if not provided)
+  fetchFn?: typeof fetch; // Custom fetch function (for Node.js < 18 or custom auth)
+  onProgress?: (progress: LoadProgress) => void;  // Progress callback
+  onError?: (error: Error) => void;               // Error callback
+  onReady?: () => void;                           // Ready callback
+}
+\`\`\`
+
+**Example**:
+\`\`\`typescript
+// Auto-detection (recommended)
+await router.init();
+
+// With progress tracking
+await router.init({
+  onProgress: (p) => console.log(`${p.phase}: ${p.percent}%`)
+});
+
+// Custom paths
+await router.init({
+  wasmPath: 'https://cdn.example.com/valhalla.wasm',
+  jsGluePath: 'https://cdn.example.com/valhalla.js'
+});
+\`\`\`
 
 #### `loadTiles(tiles: ArrayBuffer): Promise<void>`
 
@@ -223,6 +344,119 @@ Cross-Origin-Embedder-Policy: require-corp
 | Core library | ~15 KB |
 | WASM module | ~8 MB |
 | Worker | ~5 KB |
+
+### Optimization Tips
+
+- **Lazy Loading**: Load WASM only when needed
+- **CDN**: Serve WASM files from a CDN for better caching
+- **Compression**: Ensure your server serves WASM with gzip/brotli compression
+- **Code Splitting**: Use dynamic imports to split WASM loading from main bundle
+
+\`\`\`typescript
+// Lazy load WASM
+const loadRouter = async () => {
+  const { createRouter } = await import('@jansoft/mbujkanji-valhalla-wasm')
+  const router = createRouter()
+  await router.init()
+  return router
+}
+\`\`\`
+
+## Troubleshooting
+
+### WASM File Not Found
+
+**Error**: `Failed to fetch WASM: 404 Not Found`
+
+**Solutions**:
+1. Ensure WASM files are built: `npm run build:wasm`
+2. Check that WASM files are in `dist/` after running `npm run build`
+3. Verify the package was installed correctly
+4. For custom paths, ensure the URL is accessible
+
+### CORS Errors
+
+**Error**: `CORS policy` or `cross-origin` errors
+
+**Solutions**:
+1. Use a bundler (Vite, Webpack) - they handle WASM files automatically
+2. Copy WASM files to your `public/` folder and reference them there
+3. Configure your server to send proper CORS headers
+4. Use a CDN that supports CORS
+
+### Monorepo Issues
+
+**Problem**: Path resolution fails in pnpm/yarn workspaces
+
+**Solutions**:
+1. Ensure the package is properly hoisted
+2. Use explicit paths if auto-detection fails:
+   \`\`\`typescript
+   await router.init({
+     wasmPath: new URL('valhalla.wasm', import.meta.url).href
+   })
+   \`\`\`
+3. Check that `node_modules` structure is correct
+
+### Worker Thread Usage
+
+**Note**: Web Workers have different path resolution behavior. The package handles this automatically, but if you encounter issues:
+
+\`\`\`typescript
+// In a Web Worker
+import { createRouter, getWasmPaths } from '@jansoft/mbujkanji-valhalla-wasm'
+
+// Get paths explicitly for workers
+const paths = getWasmPaths()
+const router = createRouter()
+await router.init({
+  wasmPath: paths.wasm,
+  jsGluePath: paths.js
+})
+\`\`\`
+
+### SSR/SSG Initialization
+
+For Next.js Server Components or SSR:
+
+\`\`\`typescript
+// Only initialize on client side
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createRouter } from '@jansoft/mbujkanji-valhalla-wasm'
+
+export function MyComponent() {
+  const [router, setRouter] = useState(null)
+  
+  useEffect(() => {
+    // Initialize only in browser
+    const initRouter = async () => {
+      const r = createRouter()
+      await r.init()
+      setRouter(r)
+    }
+    initRouter()
+  }, [])
+  
+  // ...
+}
+\`\`\`
+
+### Path Resolution Errors
+
+**Error**: `import.meta.url is not defined` (in CJS)
+
+**Solution**: The package handles this automatically. If you see this error:
+1. Ensure you're using the latest version
+2. Check that your bundler is configured correctly
+3. Use ESM instead of CJS if possible
+
+### Common Path Resolution Errors
+
+- **Wrong path format**: Use URLs or absolute paths, not relative paths from root
+- **Bundler not copying WASM**: Ensure your bundler is configured to handle `.wasm` files
+- **Node.js path issues**: Use `file://` URLs or absolute paths in Node.js
 
 ## License
 

@@ -43,8 +43,8 @@ const DEFAULT_STATUS: RouterStatus = {
 
 export function useValhalla(options: UseValhallaOptions = {}): UseValhallaReturn {
   const {
-    wasmPath = '/valhalla.wasm',
-    jsGluePath = '/valhalla.js',
+    wasmPath,  // Optional - auto-detected if not provided
+    jsGluePath,  // Optional - auto-detected if not provided
     autoInit = false,
     verbose = false,
   } = options
@@ -69,9 +69,10 @@ export function useValhalla(options: UseValhallaOptions = {}): UseValhallaReturn
     try {
       const router = createRouter({ verbose })
       
+      // Auto-detects WASM paths if not provided
       await router.init({
-        wasmPath,
-        jsGluePath,
+        ...(wasmPath && { wasmPath }),
+        ...(jsGluePath && { jsGluePath }),
         onProgress: setProgress,
       })
 

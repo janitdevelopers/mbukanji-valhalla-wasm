@@ -6,13 +6,45 @@
 export interface ValhallaInitOptions {
   /** 
    * Path to the WASM file
-   * @default '/valhalla.wasm'
+   * 
+   * If not provided, paths are auto-detected from the package location.
+   * Works in browser, Node.js, and bundler environments.
+   * 
+   * @default Auto-detected from package location
+   * 
+   * @example
+   * ```typescript
+   * // Auto-detection (recommended)
+   * await router.init()
+   * 
+   * // Custom path (for CDN or custom locations)
+   * await router.init({ wasmPath: 'https://cdn.example.com/valhalla.wasm' })
+   * 
+   * // Local custom path
+   * await router.init({ wasmPath: '/custom/path/valhalla.wasm' })
+   * ```
    */
   wasmPath?: string
   
   /**
    * Path to the JS glue code (if separate from main bundle)
-   * @default undefined (uses bundled glue code)
+   * 
+   * If not provided, paths are auto-detected from the package location.
+   * Only needed if the JS glue code is in a different location than the WASM file.
+   * 
+   * @default Auto-detected from package location
+   * 
+   * @example
+   * ```typescript
+   * // Auto-detection (recommended)
+   * await router.init()
+   * 
+   * // Custom paths for both files
+   * await router.init({
+   *   wasmPath: 'https://cdn.example.com/valhalla.wasm',
+   *   jsGluePath: 'https://cdn.example.com/valhalla.js'
+   * })
+   * ```
    */
   jsGluePath?: string
   
