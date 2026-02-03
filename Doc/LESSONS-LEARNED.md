@@ -150,6 +150,23 @@ Protobuf's generated code calls `IsStructurallyValid`; that symbol is in **libut
 | LTO / link order issues | Build Valhalla with **-fno-lto** |
 | Scripts fail in Docker (CRLF) | **awk** strip of `\r` before running scripts; **.gitattributes eol=lf** for *.sh |
 | Wrong directory for docker build | Run **docker build** from **native/** with **`.`** as context |
+| CI: WASM files not in wasm/ after download | Download artifact with **path: wasm/** (not `path: .`); remove find/copy workaround; add **if-no-files-found: error** on upload |
+
+---
+
+## 9. CI: WASM Artifact Path (Deploy to npm)
+
+### Problem
+
+Deploy workflow could fail with "No WASM files found to copy" because the artifact was downloaded with `path: .`, so `valhalla.wasm` and `valhalla.js` landed at repo root. A workaround step used `find` to copy them into `wasm/`.
+
+### Fix applied
+
+- **Download** the WASM artifact with **`path: wasm/`** so the two files land directly in `wasm/` where tsup and `scripts/verify-wasm.js` expect them.
+- **Removed** the "Ensure WASM files in wasm/" step (find + cp).
+- **Added** `if-no-files-found: error` to the upload-artifact step so the job fails early if the prepare step produced no files.
+
+**Takeaway:** When uploading a flat directory (e.g. `wasm/` with two files), download with `path: wasm/` so the consumer gets `wasm/valhalla.wasm` and `wasm/valhalla.js` without extra steps.
 
 ---
 

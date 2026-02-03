@@ -18,9 +18,7 @@ jobs:
   build-wasm:
     name: Build WASM (Docker)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        timeout-minutes: 90
+    timeout-minutes: 90
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,13 +34,23 @@ jobs:
           mkdir -p wasm-out
           docker run --rm -v "$PWD/wasm-out:/artifacts" valhalla-wasm-builder
           ls -la wasm-out/
+          test -f wasm-out/valhalla.wasm || (echo "Docker did not produce wasm-out/valhalla.wasm" && exit 1)
+          test -f wasm-out/valhalla.js || (echo "Docker did not produce wasm-out/valhalla.js" && exit 1)
+
+      # Upload as wasm/ so download extracts to workspace with wasm/valhalla.wasm and wasm/valhalla.js
+      - name: Prepare WASM artifact
+        run: |
+          mkdir -p wasm
+          cp wasm-out/valhalla.wasm wasm-out/valhalla.js wasm/
+          ls -la wasm/
 
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: wasm
-          path: wasm-out/
+          path: wasm/
           retention-days: 1
+          if-no-files-found: error
 
   deploy:
     name: Build package and publish to npm
@@ -52,14 +60,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Download into wasm/ so valhalla.wasm and valhalla.js land where tsup/build expect them
       - name: Download WASM artifacts
         uses: actions/download-artifact@v4
         with:
           name: wasm
-          path: wasm
+          path: wasm/
 
       - name: Verify WASM files present
-        run: ls -la wasm/
+        run: |
+          test -f wasm/valhalla.wasm || (echo "Missing wasm/valhalla.wasm" && exit 1)
+          test -f wasm/valhalla.js || (echo "Missing wasm/valhalla.js" && exit 1)
+          echo "WASM files OK"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

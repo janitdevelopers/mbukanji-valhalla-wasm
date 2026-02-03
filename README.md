@@ -286,11 +286,21 @@ The package requires a compiled `valhalla.wasm` file. See [native/README.md](./n
 
 ### Quick Build (Docker)
 
+From repo root (recommended; writes to `wasm/`):
+
+\`\`\`bash
+pnpm run build:wasm
+\`\`\`
+
+Or manually (mount must be `/artifacts` so the container can write the built files):
+
 \`\`\`bash
 cd native
 docker build -t valhalla-wasm-builder .
-docker run --rm -v $(pwd)/../wasm:/output valhalla-wasm-builder
+docker run --rm -v $(pwd)/../wasm:/artifacts valhalla-wasm-builder
 \`\`\`
+
+Then run `pnpm run build` to build the package. Both `wasm/valhalla.wasm` and `wasm/valhalla.js` are required.
 
 ## Creating Routing Tiles
 
