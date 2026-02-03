@@ -15,6 +15,9 @@
 #   ./build-wasm.sh --version 3.4.0    # Specify Valhalla version
 #   ./build-wasm.sh --clean            # Clean build (no cache)
 #
+# Pre-flight (validate protobuf+abseil link before full build, ~10 min):
+#   docker build --target validate -t valhalla-wasm-validate -f Dockerfile .
+#
 # Output:
 #   ../wasm/valhalla.wasm
 #   ../wasm/valhalla.js

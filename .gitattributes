@@ -1,0 +1,2 @@
+# Ensure shell scripts always use LF so Docker RUN works (no "not found" from CRLF shebang)
+*.sh text eol=lf

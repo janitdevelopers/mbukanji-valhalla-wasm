@@ -73,7 +73,6 @@
   },
   "dependencies": {
     "@edge-runtime/vm": "latest",
-    "@jansoft/mbujkanji-valhalla-wasm": "latest",
     "@microsoft/api-extractor": "latest",
     "@opentelemetry/api": "latest",
     "@radix-ui/react-accordion": "1.2.12",
