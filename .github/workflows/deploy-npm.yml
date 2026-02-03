@@ -1,0 +1,90 @@
+# Deploy package to npm.
+# Option B: Build WASM in CI with Docker, then build package and publish.
+# Triggers: GitHub Release published, or manual "Run workflow".
+# Requires: Repository secret DEPLOY_TO_NPM (npm token with publish access).
+
+name: Deploy to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-wasm:
+    name: Build WASM (Docker)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build WASM in Docker
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          docker build -t valhalla-wasm-builder ./native
+
+      - name: Extract WASM artifacts
+        run: |
+          mkdir -p wasm-out
+          docker run --rm -v "$PWD/wasm-out:/artifacts" valhalla-wasm-builder
+          ls -la wasm-out/
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm
+          path: wasm-out/
+          retention-days: 1
+
+  deploy:
+    name: Build package and publish to npm
+    runs-on: ubuntu-latest
+    needs: build-wasm
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download WASM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm
+          path: wasm
+
+      - name: Verify WASM files present
+        run: ls -la wasm/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build package
+        run: pnpm run build
+
+      - name: Verify WASM files
+        run: node scripts/verify-wasm.js
+
+      - name: Run tests
+        run: pnpm run test:run
+
+      - name: Publish to npm
+        run: pnpm publish --provenance --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.DEPLOY_TO_NPM }}

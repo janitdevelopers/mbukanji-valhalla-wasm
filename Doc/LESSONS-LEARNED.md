@@ -22,7 +22,7 @@ Protobuf v25 depends on Abseil and utf8_range; those libraries must be on the li
 - **Merged archive (`protobuf_deps.a`)**: Merged all dependency `.a` files (abseil + utf8_range) into one archive with `emar` and linked with `--whole-archive protobuf_deps.a`. A **minimal** link (one .cc + libprotobuf + protobuf_deps) succeeded, but the **full** link (wasm_bindings + libvalhalla + libprotobuf + protobuf_deps) still had undefined absl/utf8 symbols.
 - **Link order**: Putting protobuf_deps before libprotobuf, or libprotobuf before protobuf_deps, or using `--whole-archive` for both libprotobuf and protobuf_deps did not fix the full link.
 - **`--start-group` / `--end-group`**: Wrapping libprotobuf and deps in a group did not help; in practice em++ did not pass these through to wasm-ld as expected.
-- **87 separate `-Wl,/path` args**: Passing each dependency `.a` explicitly on the command line was tried; with em++’s internal response file for wasm-ld, those args did not reliably reach the linker.
+- **87 separate `-Wl,/path` args**: Passing each dependency `.a` explicitly on the command line was tried; with em++'s internal response file for wasm-ld, those args did not reliably reach the linker.
 
 ### Fix that worked
 
@@ -125,7 +125,7 @@ Scripts (`link-wasm.sh`, `merge-protobuf-deps.sh`, `preflight.sh`) checked out w
 - **utf8_range**: C library (e.g. `naive.c`, `range2-sse.c`).
 - **utf8_validity**: C++ library (`utf8_validity.cc`), uses Abseil, and provides **`utf8_range::IsStructurallyValid(absl::string_view)`**.
 
-Protobuf’s generated code calls `IsStructurallyValid`; that symbol is in **libutf8_validity**, not the C lib. So the link line must include **`-lutf8_validity`** (and **`-lutf8_range`** if needed). The Dockerfile copies all `.a` from the protobuf build to the sysroot, so `-lutf8_validity` and `-lutf8_range` resolve when `-L` points at the sysroot.
+Protobuf's generated code calls `IsStructurallyValid`; that symbol is in **libutf8_validity**, not the C lib. So the link line must include **`-lutf8_validity`** (and **`-lutf8_range`** if needed). The Dockerfile copies all `.a` from the protobuf build to the sysroot, so `-lutf8_validity` and `-lutf8_range` resolve when `-L` points at the sysroot.
 
 **Takeaway:** For protobuf v25+, link both **utf8_validity** (C++) and **utf8_range** (C) from the same build tree as protobuf.
 
@@ -161,7 +161,7 @@ Protobuf’s generated code calls `IsStructurallyValid`; that symbol is in **lib
 
 2. **Valhalla**
    - Keep **-fno-lto** for the WASM build so link order is stable.
-   - Ensure Valhalla’s C++ standard is at least 17 if it uses `std::string_view` with protobuf.
+   - Ensure Valhalla's C++ standard is at least 17 if it uses `std::string_view` with protobuf.
 
 3. **Link command**
    - Order: bindings → libvalhalla → libprotobuf → **@deps.rsp** (whole-archive list of dependency .a) → -lutf8_validity -lutf8_range → -lz.
@@ -172,3 +172,5 @@ Protobuf’s generated code calls `IsStructurallyValid`; that symbol is in **lib
    - If you add new scripts, keep CRLF handling (awk strip or eol=lf) and run docker build from `native/`.
 
 This file can be updated as new issues and fixes are discovered.
+
+**Reference:** The link script that completed successfully is saved in this folder as **`link-wasm-successful.sh`**. The live copy used by the Docker build is `native/link-wasm.sh`.
