@@ -21,21 +21,16 @@ describe('wasm-loader', () => {
 
   describe('loadWasmModule - path resolution', () => {
     it('should use auto-detected paths when no paths provided', async () => {
-      const getWasmPathsSpy = vi.spyOn(
-        await import('../../src/internal/wasm-paths'),
-        'getWasmPaths'
-      )
-
-      // Mock fetch to avoid actual WASM loading
+      // Mock fetch to avoid actual WASM loading; jsGluePath: '' forces fetch path in Node
       const mockFetch = vi.fn().mockRejectedValue(new Error('WASM file not found (expected in test)'))
 
       try {
         await loadWasmModule({
+          jsGluePath: '',
           fetchFn: mockFetch as typeof fetch,
         })
       } catch (error) {
-        // Expected to fail without actual WASM files
-        // But we can verify paths were resolved
+        // Expected to fail without actual WASM files; verify paths were resolved and fetch was used
         expect(mockFetch).toHaveBeenCalled()
         const callArgs = mockFetch.mock.calls[0]
         expect(callArgs[0]).toBeTruthy()
@@ -52,7 +47,7 @@ describe('wasm-loader', () => {
       try {
         await loadWasmModule({
           wasmPath: customWasmPath,
-          jsGluePath: customJsPath,
+          jsGluePath: '', // force fetch path (no dynamic import)
           fetchFn: mockFetch as typeof fetch,
         })
       } catch (error) {
@@ -72,6 +67,7 @@ describe('wasm-loader', () => {
       try {
         await loadWasmModule({
           wasmPath: customWasmPath,
+          jsGluePath: '', // force fetch path so mockFetch is used
           fetchFn: mockFetch as typeof fetch,
         })
       } catch (error) {
@@ -96,14 +92,15 @@ describe('wasm-loader', () => {
       await expect(
         loadWasmModule({
           wasmPath: '/nonexistent.wasm',
+          jsGluePath: '',
           fetchFn: mockFetch as typeof fetch,
         })
       ).rejects.toThrow()
 
-      // Error should contain helpful message
       try {
         await loadWasmModule({
           wasmPath: '/nonexistent.wasm',
+          jsGluePath: '',
           fetchFn: mockFetch as typeof fetch,
         })
       } catch (error: any) {
@@ -120,6 +117,7 @@ describe('wasm-loader', () => {
       await expect(
         loadWasmModule({
           wasmPath: 'https://different-origin.com/valhalla.wasm',
+          jsGluePath: '',
           fetchFn: mockFetch as typeof fetch,
         })
       ).rejects.toThrow()
@@ -127,6 +125,7 @@ describe('wasm-loader', () => {
       try {
         await loadWasmModule({
           wasmPath: 'https://different-origin.com/valhalla.wasm',
+          jsGluePath: '',
           fetchFn: mockFetch as typeof fetch,
         })
       } catch (error: any) {
@@ -143,6 +142,7 @@ describe('wasm-loader', () => {
       await expect(
         loadWasmModule({
           wasmPath: '/valhalla.wasm',
+          jsGluePath: '',
           fetchFn: mockFetch as typeof fetch,
         })
       ).rejects.toThrow()
@@ -150,6 +150,7 @@ describe('wasm-loader', () => {
       try {
         await loadWasmModule({
           wasmPath: '/valhalla.wasm',
+          jsGluePath: '',
           fetchFn: mockFetch as typeof fetch,
         })
       } catch (error: any) {
@@ -164,6 +165,7 @@ describe('wasm-loader', () => {
       try {
         await loadWasmModule({
           wasmPath: '/valhalla.wasm',
+          jsGluePath: '',
           fetchFn: mockFetch as typeof fetch,
         })
         expect.fail('Should have thrown an error')

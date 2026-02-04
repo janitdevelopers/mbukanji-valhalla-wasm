@@ -72,11 +72,22 @@ describe('wasm-paths', () => {
     })
 
     it('should return false in Node.js without bundler env vars', () => {
-      delete process.env.VITE
-      delete process.env.WEBPACK
-      delete process.env.ROLLUP
-      delete process.env.NEXT_PUBLIC
-      
+      // Remove all env vars that could trigger bundler detection (implementation also checks key names containing VITE/WEBPACK/ROLLUP)
+      const cleanEnv: Record<string, string> = {}
+      for (const [key, value] of Object.entries(originalEnv)) {
+        if (
+          key !== 'VITE' &&
+          key !== 'WEBPACK' &&
+          key !== 'ROLLUP' &&
+          key !== 'NEXT_PUBLIC' &&
+          !key.includes('VITE') &&
+          !key.includes('WEBPACK') &&
+          !key.includes('ROLLUP')
+        ) {
+          cleanEnv[key] = value as string
+        }
+      }
+      process.env = cleanEnv
       expect(isBundlerEnvironment()).toBe(false)
     })
 
@@ -104,16 +115,19 @@ describe('wasm-paths', () => {
   describe('isWorkerEnvironment', () => {
     const originalSelf = globalThis.self
     const originalWindow = globalThis.window
+    const originalImportScripts = (globalThis as any).importScripts
+    const originalWorkerGlobalScope = (globalThis as any).WorkerGlobalScope
 
     beforeEach(() => {
-      // Reset globals
-      delete (globalThis as any).self
-      delete (globalThis as any).window
+      vi.stubGlobal('self', undefined)
+      vi.stubGlobal('window', undefined)
     })
 
     afterEach(() => {
-      globalThis.self = originalSelf
-      globalThis.window = originalWindow
+      vi.stubGlobal('self', originalSelf)
+      vi.stubGlobal('window', originalWindow)
+      vi.stubGlobal('importScripts', originalImportScripts)
+      vi.stubGlobal('WorkerGlobalScope', originalWorkerGlobalScope)
     })
 
     it('should return false in Node.js environment', () => {
@@ -121,30 +135,27 @@ describe('wasm-paths', () => {
     })
 
     it('should return false when both self and window exist (browser main thread)', () => {
-      ;(globalThis as any).self = {}
-      ;(globalThis as any).window = {}
+      vi.stubGlobal('self', {})
+      vi.stubGlobal('window', {})
       expect(isWorkerEnvironment()).toBe(false)
     })
 
-    it('should return true when self exists but window does not', () => {
-      ;(globalThis as any).self = {}
-      delete (globalThis as any).window
-      expect(isWorkerEnvironment()).toBe(false) // Need importScripts or WorkerGlobalScope
+    it('should return false when self exists but no worker APIs', () => {
+      vi.stubGlobal('self', {})
+      vi.stubGlobal('window', undefined)
+      expect(isWorkerEnvironment()).toBe(false)
     })
 
     it('should return true when importScripts exists', () => {
-      ;(globalThis as any).self = {
-        importScripts: () => {},
-      }
-      delete (globalThis as any).window
+      vi.stubGlobal('self', {})
+      vi.stubGlobal('window', undefined)
+      vi.stubGlobal('importScripts', () => {})
       expect(isWorkerEnvironment()).toBe(true)
     })
 
     it('should return true when WorkerGlobalScope exists', () => {
-      ;(globalThis as any).self = {
-        WorkerGlobalScope: class {},
-      }
-      delete (globalThis as any).window
+      vi.stubGlobal('self', { WorkerGlobalScope: class {} })
+      vi.stubGlobal('window', undefined)
       expect(isWorkerEnvironment()).toBe(true)
     })
   })
