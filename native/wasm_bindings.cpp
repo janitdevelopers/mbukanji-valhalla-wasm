@@ -19,6 +19,7 @@
 #include "valhalla/tyr/actor.h"
 #include "valhalla/baldr/graphreader.h"
 #include "valhalla/baldr/pathlocation.h"
+#include "valhalla/baldr/rapidjson_utils.h"
 #include "valhalla/baldr/tilehierarchy.h"
 #include "valhalla/midgard/logging.h"
 #include "valhalla/midgard/util.h"
@@ -193,7 +194,7 @@ bool extractTarToFS(const std::string& tarData) {
                     // Create parent directories
                     var parts = path.split('/');
                     parts.pop();
-                    var dir = '';
+                    var dir = "";
                     for (var i = 0; i < parts.length; i++) {
                         if (parts[i]) {
                             dir += '/' + parts[i];
@@ -236,7 +237,7 @@ public:
             std::string config = getDefaultConfig();
             boost::property_tree::ptree pt;
             std::istringstream is(config);
-            boost::property_tree::read_json(is, pt);
+            rapidjson::read_json(is, pt);
             
             actor = std::make_unique<valhalla::tyr::actor_t>(pt, true);
             tiles_loaded = true;

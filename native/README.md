@@ -48,11 +48,12 @@ Output files will be in `../wasm/`:
 
 ## How It Works
 
-1. **Docker Environment** - Uses the official Emscripten SDK image
-2. **Dependencies** - Builds zlib, protobuf, boost, and lz4 for WASM
-3. **Valhalla** - Clones and patches Valhalla for WASM compilation
-4. **Bindings** - Compiles C++ bindings that expose routing API to JavaScript
-5. **Output** - Produces `.wasm` and `.js` files for browser use
+1. **Preflight (optional)** - Run `docker build --target validate` to verify protobuf+abseil+utf8_range link before the full Valhalla build (~10 min).
+2. **Docker Environment** - Uses the official Emscripten SDK image
+3. **Dependencies** - Builds zlib, protobuf, boost, and lz4 for WASM
+4. **Valhalla** - Clones and patches Valhalla for WASM compilation
+5. **Bindings** - Compiles C++ bindings that expose routing API to JavaScript
+6. **Output** - Produces `.wasm` and `.js` files for browser use
 
 ## Customization
 

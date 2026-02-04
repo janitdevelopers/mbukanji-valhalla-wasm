@@ -2,13 +2,15 @@ import { defineConfig } from 'tsup'
 import { existsSync, mkdirSync, copyFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
+const WASM_FILES = ['valhalla.wasm', 'valhalla.js'] as const
+
 /**
- * Copy WASM files from wasm/ to dist/ after build
+ * Copy WASM files from wasm/ to dist/ after build.
+ * Requires wasm/valhalla.wasm and wasm/valhalla.js (e.g. from `pnpm run build:wasm` or CI artifact).
  */
 async function copyWasmFiles() {
   const wasmDir = join(process.cwd(), 'wasm')
   const distDir = join(process.cwd(), 'dist')
-  const wasmFiles = ['valhalla.wasm', 'valhalla.js']
 
   try {
     // Ensure dist directory exists
@@ -20,12 +22,24 @@ async function copyWasmFiles() {
     // Check if wasm directory exists
     if (!existsSync(wasmDir)) {
       console.warn('⚠ Warning: wasm/ directory not found. WASM files will not be copied.')
-      console.warn('  Run "npm run build:wasm" to build WASM files first.')
+      console.warn('  Run "pnpm run build:wasm" (or npm run build:wasm) to build WASM files first.')
       return
     }
 
+    // Pre-check: report exactly which files are missing so the user knows what to do
+    const missing = WASM_FILES.filter((f) => !existsSync(join(wasmDir, f)))
+    if (missing.length === WASM_FILES.length) {
+      console.error('\n❌ No WASM files in wasm/. Build WASM first, then build the package.')
+      console.error('   Run: pnpm run build:wasm')
+      console.error('   Then: pnpm run build')
+      process.exit(1)
+    }
+    if (missing.length > 0) {
+      console.warn(`⚠ Warning: missing in wasm/: ${missing.join(', ')}. Run "pnpm run build:wasm" to build.`)
+    }
+
     let copiedCount = 0
-    for (const file of wasmFiles) {
+    for (const file of WASM_FILES) {
       const srcPath = join(wasmDir, file)
       const destPath = join(distDir, file)
 
@@ -51,15 +65,15 @@ async function copyWasmFiles() {
     }
 
     if (copiedCount === 0) {
-      throw new Error(
-        'Error: No WASM files found to copy. Run "npm run build:wasm" to build WASM files first.'
-      )
+      console.error('\n❌ No WASM files found to copy. Run: pnpm run build:wasm')
+      process.exit(1)
     }
 
-    if (copiedCount < wasmFiles.length) {
-      console.warn(
-        `⚠ Warning: Only ${copiedCount} of ${wasmFiles.length} WASM files were copied.`
+    if (copiedCount < WASM_FILES.length) {
+      console.error(
+        `\n❌ Only ${copiedCount} of ${WASM_FILES.length} WASM files copied. wasm/ must contain valhalla.wasm and valhalla.js. Run: pnpm run build:wasm`
       )
+      process.exit(1)
     }
   } catch (error) {
     if (error instanceof Error) {
