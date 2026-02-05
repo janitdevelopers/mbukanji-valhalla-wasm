@@ -1,6 +1,6 @@
 {
   "name": "@jansoft/mbujkanji-valhalla-wasm",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Valhalla routing engine compiled to WebAssembly for offline-first web applications",
   "keywords": [
     "valhalla",
