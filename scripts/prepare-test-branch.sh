@@ -13,7 +13,7 @@ echo ""
 echo "[1/3] Building WASM (Docker)..."
 pnpm run build:wasm || {
   echo "WARNING: build:wasm failed. Ensure Docker is running and build valhalla.wasm + valhalla.js in wasm/."
-  echo "  cd native && docker build -t valhalla-wasm-builder . && docker run --rm -v \$(pwd)/../wasm:/artifacts valhalla-wasm-builder"
+  echo "  cd native && docker build -t native-01 . && docker run --rm -v \$(pwd)/../wasm:/artifacts native-01"
   exit 1
 }
 

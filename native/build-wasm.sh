@@ -31,7 +31,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$PROJECT_ROOT/wasm"
-DOCKER_IMAGE="valhalla-wasm-builder"
+DOCKER_IMAGE="native-01"
 VALHALLA_VERSION="3.4.0"
 CLEAN_BUILD=false
 

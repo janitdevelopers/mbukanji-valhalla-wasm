@@ -13,7 +13,7 @@ try {
     pnpm run build:wasm
 } catch {
     Write-Host "WARNING: build:wasm failed. Ensure Docker is running and you have built valhalla.wasm + valhalla.js in wasm/." -ForegroundColor Red
-    Write-Host "  You can run: cd native; docker build -t valhalla-wasm-builder .; docker run --rm -v `$(pwd)/../wasm:/artifacts valhalla-wasm-builder" -ForegroundColor Gray
+    Write-Host "  You can run: cd native; docker build -t native-01 .; docker run --rm -v `$(pwd)/../wasm:/artifacts native-01" -ForegroundColor Gray
     exit 1
 }
 
