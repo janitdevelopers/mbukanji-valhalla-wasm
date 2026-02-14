@@ -20,6 +20,10 @@ yarn add @jansoft/mbujkanji-valhalla-wasm
 pnpm add @jansoft/mbujkanji-valhalla-wasm
 \`\`\`
 
+## Documentation
+
+- **[Package User Guide](./docs/USER_GUIDE.md)** – Integration steps, offline-first setup, framework guides, and troubleshooting.
+
 ## Quick Start
 
 \`\`\`typescript

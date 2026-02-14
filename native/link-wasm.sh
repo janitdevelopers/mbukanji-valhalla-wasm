@@ -1,13 +1,14 @@
 #!/bin/sh
 # Link WASM bindings with Valhalla + protobuf + abseil + utf8_range.
 #
-# Protobuf deps (abseil + utf8_range): pass each .a via a response file so em++
-# forwards them to wasm-ld; merged archive alone often left absl/utf8 undefined.
+# Full link must NOT use -Wl,@file for the protobuf dependency .a files: em++
+# does not expand @file when building its linker response file, so wasm-ld
+# never sees those archives and absl/utf8_range stay undefined. Pass each .a
+# path as a separate argument to em++ (e.g. 88 paths) so they reach the linker.
 
 set -e
 PROTO_BUILD=/build/deps/protobuf-25.1/build
 PROTOBUF_A=$(find "$PROTO_BUILD" -name 'libprotobuf.a' ! -path '*lite*' 2>/dev/null | head -1)
-DEPS_RSP=/tmp/protobuf_deps.rsp
 
 if [ -z "$PROTOBUF_A" ] || [ ! -f "$PROTOBUF_A" ]; then
   echo "[link-wasm] ERROR: libprotobuf.a not found under $PROTO_BUILD" >&2
@@ -20,14 +21,11 @@ if [ ! -f "$VALHALLA_A" ]; then
   exit 1
 fi
 
-# Response file: one -Wl,arg per line so em++ gets each and passes to wasm-ld
-echo "[link-wasm] Building dependency response file..."
-printf '%s\n' '-Wl,--whole-archive' > "$DEPS_RSP"
-find "$PROTO_BUILD" -name '*.a' ! -name 'libprotobuf.a' ! -name 'libprotobuf-lite.a' -print0 | \
-  xargs -0 -I {} printf '-Wl,%s\n' {} >> "$DEPS_RSP"
-printf '%s\n' '-Wl,--no-whole-archive' >> "$DEPS_RSP"
-DEPS_COUNT=$(find "$PROTO_BUILD" -name '*.a' ! -name 'libprotobuf.a' ! -name 'libprotobuf-lite.a' | wc -l)
-echo "[link-wasm] Link order: bindings, libvalhalla, libprotobuf, @deps ($DEPS_COUNT .a), -lutf8 -lz"
+# Build list of protobuf dep .a paths (abseil, utf8_range, etc.) as separate args.
+# Do not use a response file (@file): em++ does not expand it for the full link.
+OTHER_PATHS=$(find "$PROTO_BUILD" -name '*.a' ! -name 'libprotobuf.a' ! -name 'libprotobuf-lite.a' | tr '\n' ' ')
+set -- $OTHER_PATHS
+echo "[link-wasm] Full link with $# .a files on command line..."
 echo "[link-wasm] Starting full WASM link..."
 
 em++ -O3 \
@@ -35,6 +33,7 @@ em++ -O3 \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s MAXIMUM_MEMORY=4GB \
   -s MODULARIZE=1 \
+  -s EXPORT_ES6=1 \
   -s EXPORT_NAME="ValhallaModule" \
   -s EXPORTED_FUNCTIONS='["_malloc","_free"]' \
   -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","stringToUTF8","lengthBytesUTF8"]' \
@@ -51,7 +50,7 @@ em++ -O3 \
   /build/wasm_bindings.cpp \
   "$VALHALLA_A" \
   "$PROTOBUF_A" \
-  @"$DEPS_RSP" \
+  -Wl,--whole-archive "$@" -Wl,--no-whole-archive \
   -L/emsdk/upstream/emscripten/cache/sysroot/lib \
   -L/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten \
   -lutf8_validity \

@@ -48,7 +48,7 @@ Output files will be in `../wasm/`:
 
 ## How It Works
 
-1. **Preflight (optional)** - Run `docker build --target validate` to verify protobuf+abseil+utf8_range link before the full Valhalla build (~10 min).
+1. **Preflight (optional)** - Run `docker build --target validate` to verify protobuf+abseil+utf8_range link before the full Valhalla build (~10 min). Use this to catch protobuf/abseil/utf8_range link issues before the long Valhalla build.
 2. **Docker Environment** - Uses the official Emscripten SDK image
 3. **Dependencies** - Builds zlib, protobuf, boost, and lz4 for WASM
 4. **Valhalla** - Clones and patches Valhalla for WASM compilation
@@ -77,8 +77,9 @@ Edit the `emcmake cmake` and `em++` commands in `Dockerfile`:
 # Optimization
 -O3 -flto
 
-# Module format
+# Module format (ES module so bundlers get a proper default export)
 -s MODULARIZE=1
+-s EXPORT_ES6=1
 -s EXPORT_NAME="ValhallaModule"
 \`\`\`
 
