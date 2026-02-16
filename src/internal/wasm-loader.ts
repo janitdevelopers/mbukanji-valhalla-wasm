@@ -11,12 +11,16 @@ import { getWasmPaths } from './wasm-paths'
 export interface ValhallaWasmModule {
   /** Calculate a route */
   route: (requestJson: string) => string
-  /** Load tiles from buffer */
-  loadTiles: (buffer: ArrayBuffer, size: number) => boolean
+  /** Load tiles from base64-encoded tar (single string for C++ std::string) */
+  loadTiles: (base64TarData: string) => boolean
+  /** Load tiles from raw bytes to avoid string encoding issues */
+  loadTilesFromBytes?: (bytes: Uint8Array) => boolean
   /** Check if tiles are loaded */
   hasTiles: () => boolean
   /** Get version string */
   getVersion: () => string
+  /** Last native error from tile loading path */
+  getLastError?: () => string
   /** Clear loaded tiles */
   clearTiles: () => void
   /** Get memory usage */
@@ -37,6 +41,8 @@ export type ValhallaWasmFactory = (options?: {
   onRuntimeInitialized?: () => void
   print?: (text: string) => void
   printErr?: (text: string) => void
+  INITIAL_MEMORY?: number
+  TOTAL_MEMORY?: number
 }) => Promise<ValhallaWasmModule>
 
 /** Global WASM module instance */
@@ -247,13 +253,26 @@ async function doLoadWasmModule(
       const factory: ValhallaWasmFactory = glueModule.default || glueModule
       
       reportProgress(onProgress, 'init', 30, 'Instantiating WASM module...')
-      
-      const module = await factory({
+
+      // Reserve more initial memory for large tile payload marshalling through embind strings.
+      // Defaults are conservative enough for browser use while avoiding common allocation aborts.
+      const initialPages = options.memory?.initial ?? 1024 // 64MB
+      const initialBytes = initialPages * 64 * 1024
+
+      // Emscripten attaches embind exports (createRouter, ValhallaRouter) only after onRuntimeInitialized.
+      // Wait for that before reading Module so we don't read before bindings exist.
+      let resolveRuntimeReady: () => void
+      const runtimeReady = new Promise<void>((resolve) => { resolveRuntimeReady = resolve })
+
+      const rawModule = await factory({
         locateFile: (path: string) => {
           if (path.endsWith('.wasm')) {
             return wasmPath
           }
           return path
+        },
+        onRuntimeInitialized: () => {
+          resolveRuntimeReady()
         },
         print: (text: string) => {
           if (options.memory?.initial) {
@@ -263,11 +282,86 @@ async function doLoadWasmModule(
         printErr: (text: string) => {
           console.error('[Valhalla]', text)
         },
+        INITIAL_MEMORY: initialBytes,
+        TOTAL_MEMORY: initialBytes,
       })
 
-      // Wait for ready if needed
-      if (module.ready) {
-        await module.ready
+      // Wait for Emscripten runtime (embind exports are then on Module); fallback to rawModule.ready
+      await Promise.race([
+        runtimeReady,
+        rawModule.ready ?? Promise.resolve(),
+      ])
+
+      // Yield so any pending microtasks (embind registration) can run before we read Module
+      await new Promise<void>((r) => setTimeout(r, 0))
+
+      // Emscripten bindings expose a class ValhallaRouter and createRouter(); loadTiles/route
+      // are on the instance, not on the Module. Get the instance and merge with Module (for HEAPU8/_malloc/_free).
+      const raw = rawModule as Record<string, unknown>
+      // #region agent log
+      const rawKeys = Object.keys(raw).filter((k) => typeof raw[k] === 'function' || k === 'HEAPU8' || k === 'ready').slice(0, 30)
+      const payloadA = { location: 'wasm-loader.ts:afterReady', message: 'raw Module after ready', data: { hasCreateRouter: typeof raw.createRouter === 'function', hasValhallaRouter: typeof raw.ValhallaRouter === 'function', hasLoadTiles: typeof raw.loadTiles === 'function', rawKeysSample: rawKeys }, hypothesisId: 'A', timestamp: Date.now() }
+      console.warn('[ValhallaDebug]', JSON.stringify(payloadA))
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('valhalla-debug', { detail: payloadA }))
+      fetch('http://127.0.0.1:7243/ingest/8b1ca911-bddf-4de9-aabd-fbcca21e0d3e', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadA) }).catch(() => {})
+      // #endregion
+      // Prefer new ValhallaRouter() so we get a real instance with loadTiles/route; createRouter() may return a handle in some Emscripten builds.
+      // If loadTiles is already on Module (some builds attach directly), use rawModule as the instance.
+      let routerInstance: ValhallaWasmModule
+      if (typeof raw.loadTiles === 'function') {
+        routerInstance = rawModule as ValhallaWasmModule
+      } else if (typeof raw.ValhallaRouter === 'function') {
+        routerInstance = new (raw.ValhallaRouter as new () => ValhallaWasmModule)()
+      } else if (typeof raw.createRouter === 'function') {
+        routerInstance = (raw.createRouter as () => ValhallaWasmModule)()
+      } else {
+        routerInstance = rawModule as ValhallaWasmModule
+      }
+      // #region agent log
+      const ri = routerInstance as Record<string, unknown>
+      const riKeys = ri ? Object.keys(ri).filter((k) => typeof ri[k] === 'function').slice(0, 20) : []
+      const payloadB = { location: 'wasm-loader.ts:routerInstance', message: 'routerInstance', data: { hasLoadTiles: typeof ri?.loadTiles === 'function', routerInstanceKeysSample: riKeys, routerInstanceType: typeof routerInstance }, hypothesisId: 'B', timestamp: Date.now() }
+      console.warn('[ValhallaDebug]', JSON.stringify(payloadB))
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('valhalla-debug', { detail: payloadB }))
+      fetch('http://127.0.0.1:7243/ingest/8b1ca911-bddf-4de9-aabd-fbcca21e0d3e', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadB) }).catch(() => {})
+      // #endregion
+
+      // Emscripten embind instance methods are on the prototype (non-enumerable), so Object.assign
+      // does not copy them. Explicitly copy the router API onto the merged object and bind to the instance.
+      const module: ValhallaWasmModule = {
+        ...(rawModule as ValhallaWasmModule),
+        loadTiles: typeof ri.loadTiles === 'function' ? (ri.loadTiles as (base64TarData: string) => boolean).bind(routerInstance) : (rawModule as ValhallaWasmModule).loadTiles,
+        loadTilesFromBytes: typeof ri.loadTilesFromBytes === 'function'
+          ? (ri.loadTilesFromBytes as (bytes: Uint8Array) => boolean).bind(routerInstance)
+          : (rawModule as ValhallaWasmModule).loadTilesFromBytes,
+        route: typeof ri.route === 'function' ? (ri.route as (requestJson: string) => string).bind(routerInstance) : (rawModule as ValhallaWasmModule).route,
+        hasTiles: typeof ri.hasTiles === 'function' ? (ri.hasTiles as () => boolean).bind(routerInstance) : (rawModule as ValhallaWasmModule).hasTiles,
+        clearTiles: typeof ri.clearTiles === 'function' ? (ri.clearTiles as () => void).bind(routerInstance) : (rawModule as ValhallaWasmModule).clearTiles,
+        getVersion: typeof ri.getVersion === 'function' ? (ri.getVersion as () => string).bind(routerInstance) : (rawModule as ValhallaWasmModule).getVersion,
+        getLastError: typeof ri.getLastError === 'function'
+          ? (ri.getLastError as () => string).bind(routerInstance)
+          : (rawModule as ValhallaWasmModule).getLastError,
+        getMemoryUsage: typeof ri.getMemoryUsage === 'function' ? (ri.getMemoryUsage as () => number).bind(routerInstance) : (rawModule as ValhallaWasmModule).getMemoryUsage,
+      } as ValhallaWasmModule
+
+      // #region agent log
+      const mergedKeys = Object.keys(module as Record<string, unknown>).filter((k) => (typeof (module as Record<string, unknown>)[k] === 'function')).slice(0, 25)
+      const payloadC = { location: 'wasm-loader.ts:merged', message: 'merged module returned', data: { hasLoadTiles: typeof (module as Record<string, unknown>).loadTiles === 'function', mergedKeysSample: mergedKeys }, hypothesisId: 'C', timestamp: Date.now() }
+      console.warn('[ValhallaDebug]', JSON.stringify(payloadC))
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('valhalla-debug', { detail: payloadC }))
+      fetch('http://127.0.0.1:7243/ingest/8b1ca911-bddf-4de9-aabd-fbcca21e0d3e', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadC) }).catch(() => {})
+      // #endregion
+
+      const merged = module as Record<string, unknown>
+      if (typeof merged.loadTiles !== 'function') {
+        const msg = [
+          'Valhalla WASM glue did not expose loadTiles (routing API missing).',
+          `Glue URL: ${resolvedJsGluePath}`,
+          `WASM URL: ${wasmPath}`,
+          'Ensure valhalla.js/valhalla.wasm are from a build that includes the Valhalla C++ bindings (native build with wasm_bindings.cpp).',
+          'In the package repo run: pnpm run build:wasm then pnpm run build. In the app run: pnpm run copy-valhalla-glue.',
+        ].join(' ')
+        throw createError(ValhallaErrorCode.WASM_INIT_FAILED, msg)
       }
 
       reportProgress(onProgress, 'init', 100, 'WASM ready')

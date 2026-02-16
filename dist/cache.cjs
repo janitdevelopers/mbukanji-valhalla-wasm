@@ -17,8 +17,7 @@ var TileCache = class {
    * Initialize the cache database
    */
   async init() {
-    if (this.db)
-      return;
+    if (this.db) return;
     if (this.dbPromise) {
       await this.dbPromise;
       return;
@@ -114,8 +113,7 @@ var TileCache = class {
   async get(regionId) {
     const db = await this.ensureDb();
     const entry = await this.getEntry(regionId);
-    if (!entry)
-      return null;
+    if (!entry) return null;
     if (entry.expiresAt > 0 && entry.expiresAt < Date.now()) {
       await this.delete(regionId);
       return null;
@@ -161,8 +159,7 @@ var TileCache = class {
    */
   async has(regionId) {
     const entry = await this.getEntry(regionId);
-    if (!entry)
-      return false;
+    if (!entry) return false;
     if (entry.expiresAt > 0 && entry.expiresAt < Date.now()) {
       return false;
     }
@@ -310,5 +307,5 @@ function createTileCache(options) {
 
 exports.TileCache = TileCache;
 exports.createTileCache = createTileCache;
-//# sourceMappingURL=out.js.map
+//# sourceMappingURL=cache.cjs.map
 //# sourceMappingURL=cache.cjs.map

@@ -23,11 +23,29 @@ import {
 import {
   loadWasmModule,
   resetWasmModule,
-  copyToWasmMemory,
-  freeWasmMemory,
   type ValhallaWasmModule,
 } from './internal/wasm-loader'
 import { logger } from './internal/logger'
+
+/** Encode ArrayBuffer as base64 so C++ loadTiles(std::string) can receive binary safely. */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  return btoa(binary)
+}
+
+/** Encode ArrayBuffer as a raw binary string (latin1-style, 1 byte per code unit). */
+function arrayBufferToBinaryString(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  const chunkSize = 0x8000
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length))
+    binary += String.fromCharCode(...chunk)
+  }
+  return binary
+}
 
 /**
  * Default router configuration
@@ -128,6 +146,29 @@ export class ValhallaRouter {
   ): Promise<void> {
     this.ensureInitialized()
 
+    // #region agent log
+    const m = this.module as unknown as Record<string, unknown>
+    const modKeys = m ? Object.keys(m).filter((k) => typeof m[k] === 'function').slice(0, 25) : []
+    const payloadD = { location: 'valhalla-router.ts:loadTiles', message: 'this.module at loadTiles entry', data: { typeofLoadTiles: typeof m?.loadTiles, hasCreateRouter: typeof m?.createRouter === 'function', hasValhallaRouter: typeof m?.ValhallaRouter === 'function', moduleKeysSample: modKeys }, hypothesisId: 'D', timestamp: Date.now() }
+    console.warn('[ValhallaDebug]', JSON.stringify(payloadD))
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('valhalla-debug', { detail: payloadD }))
+    fetch('http://127.0.0.1:7243/ingest/8b1ca911-bddf-4de9-aabd-fbcca21e0d3e', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadD) }).catch(() => {})
+    // #endregion
+
+    // Ensure module has loadTiles (Emscripten exposes it on the router instance, not the raw Module)
+    if (typeof m?.loadTiles !== 'function') {
+      let instance: Record<string, unknown> | null = null
+      if (typeof m?.ValhallaRouter === 'function') {
+        instance = new (m.ValhallaRouter as new () => Record<string, unknown>)()
+      } else if (typeof m?.createRouter === 'function') {
+        const created = (m.createRouter as () => unknown)()
+        instance = created && typeof created === 'object' && typeof (created as Record<string, unknown>).loadTiles === 'function' ? (created as Record<string, unknown>) : null
+      }
+      if (instance && typeof instance.loadTiles === 'function') {
+        this.module = Object.assign({}, m, instance) as unknown as ValhallaWasmModule
+      }
+    }
+
     const { onProgress, validate = true, regionId } = options
 
     logger.info('Loading tiles...', { size: tiles.byteLength, regionId })
@@ -140,10 +181,6 @@ export class ValhallaRouter {
     })
 
     try {
-      // Copy tiles to WASM memory
-      const tilesArray = new Uint8Array(tiles)
-      const ptr = copyToWasmMemory(this.module!, tilesArray)
-
       onProgress?.({
         phase: 'tiles',
         percent: 50,
@@ -152,11 +189,70 @@ export class ValhallaRouter {
         bytesTotal: tiles.byteLength,
       })
 
-      // Load tiles in WASM
-      const success = this.module!.loadTiles(tiles, tiles.byteLength)
+      let success = false
+      let preferredError: unknown = null
 
-      // Free the temporary memory
-      freeWasmMemory(this.module!, ptr)
+      // Prefer direct byte transfer when the native binding exposes it.
+      // This avoids UTF/base64 string transport ambiguity for binary tar payloads.
+      if (typeof this.module!.loadTilesFromBytes === 'function') {
+        try {
+          success = this.module!.loadTilesFromBytes(new Uint8Array(tiles))
+        } catch (e) {
+          preferredError = e
+        }
+      }
+
+      // Fallback chain for older builds: base64 then raw-binary string.
+      if (!success) {
+        const base64 = arrayBufferToBase64(tiles)
+        let base64Error: unknown = null
+        try {
+          success = this.module!.loadTiles(base64)
+        } catch (e) {
+          base64Error = e
+          if (!preferredError) preferredError = e
+        }
+        if (!success) {
+          const rawBinary = arrayBufferToBinaryString(tiles)
+          try {
+            const fallbackSuccess = this.module!.loadTiles(rawBinary)
+            if (fallbackSuccess) {
+              success = true
+              logger.warn(
+                'loadTiles succeeded via raw-binary fallback; native binding likely expects direct bytes'
+              )
+            }
+          } catch (fallbackError) {
+            if (!preferredError) preferredError = fallbackError
+            if (base64Error) throw base64Error
+            throw fallbackError
+          }
+        }
+      }
+
+      if (!success && preferredError) {
+        throw preferredError
+      }
+      if (!success) {
+        const nativeDetail =
+          typeof this.module!.getLastError === 'function'
+            ? this.module!.getLastError() || ''
+            : ''
+        if (nativeDetail) {
+          throw createError(
+            ValhallaErrorCode.TILES_LOAD_FAILED,
+            `Failed to load routing tiles: ${nativeDetail}`
+          )
+        }
+      }
+
+      onProgress?.({
+        phase: 'tiles',
+        percent: 75,
+        message: 'Tiles loaded, validating...',
+        bytesLoaded: tiles.byteLength,
+        bytesTotal: tiles.byteLength,
+      })
 
       if (!success) {
         throw createError(ValhallaErrorCode.TILES_LOAD_FAILED)
@@ -186,15 +282,18 @@ export class ValhallaRouter {
       logger.info('Tiles loaded successfully', { regionId })
     } catch (error) {
       logger.error('Failed to load tiles:', error)
-      
+      const message =
+        error instanceof ValhallaError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : error != null && typeof (error as { message?: string }).message === 'string'
+              ? (error as { message: string }).message
+              : String(error)
       if (error instanceof ValhallaError) {
         throw error
       }
-      
-      throw createError(
-        ValhallaErrorCode.TILES_LOAD_FAILED,
-        error instanceof Error ? error.message : 'Unknown error loading tiles'
-      )
+      throw createError(ValhallaErrorCode.TILES_LOAD_FAILED, message || 'Unknown error loading tiles')
     }
   }
 

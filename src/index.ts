@@ -126,5 +126,6 @@ export {
   formatDuration,
 } from './utils'
 
-// Version
+// Version (bump GLUE_VERSION when WASM/glue rebuild to detect which build is running)
 export const VERSION = '0.1.0'
+export const GLUE_VERSION = '2026-02-14-1'

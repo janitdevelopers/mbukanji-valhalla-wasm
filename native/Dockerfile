@@ -195,7 +195,8 @@ RUN cd /build/valhalla-src && \
 # -Wno-error=unused-but-set-variable: ensure -Werror does not turn that warning into error
 # -fno-lto: build native .o so wasm-ld preserves link order; LTO in libvalhalla.a caused
 # absl symbols from libprotobuf.a to stay undefined despite --whole-archive protobuf_deps.a
-        -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -fno-lto -Wno-deprecated-builtins -Wno-unused-but-set-variable -Wno-error=unused-but-set-variable" \
+# -fexceptions: preserve C++ throw/catch semantics in WASM build (avoids opaque numeric aborts)
+        -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -fno-lto -fexceptions -Wno-deprecated-builtins -Wno-unused-but-set-variable -Wno-error=unused-but-set-variable" \
         -DCMAKE_EXE_LINKER_FLAGS="-O3"
 
 RUN cd /build/valhalla-src && \

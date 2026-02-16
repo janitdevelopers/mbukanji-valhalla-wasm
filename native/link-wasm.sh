@@ -29,7 +29,9 @@ echo "[link-wasm] Full link with $# .a files on command line..."
 echo "[link-wasm] Starting full WASM link..."
 
 em++ -O3 \
+  -fexceptions \
   -s WASM=1 \
+  -s DISABLE_EXCEPTION_CATCHING=0 \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s MAXIMUM_MEMORY=4GB \
   -s MODULARIZE=1 \

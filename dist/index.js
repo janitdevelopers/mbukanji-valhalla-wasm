@@ -1,8 +1,7 @@
 var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
   get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
 }) : x)(function(x) {
-  if (typeof require !== "undefined")
-    return require.apply(this, arguments);
+  if (typeof require !== "undefined") return require.apply(this, arguments);
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
 
@@ -283,8 +282,7 @@ Error: ${errorMessage}
   let loaded = 0;
   while (true) {
     const { done, value } = await reader.read();
-    if (done)
-      break;
+    if (done) break;
     chunks.push(value);
     loaded += value.length;
     const percent = total ? Math.round(loaded / total * 100) : 0;
@@ -343,12 +341,21 @@ async function doLoadWasmModule(options) {
       );
       const factory = glueModule.default || glueModule;
       reportProgress(onProgress, "init", 30, "Instantiating WASM module...");
-      const module = await factory({
+      const initialPages = options.memory?.initial ?? 1024;
+      const initialBytes = initialPages * 64 * 1024;
+      let resolveRuntimeReady;
+      const runtimeReady = new Promise((resolve) => {
+        resolveRuntimeReady = resolve;
+      });
+      const rawModule = await factory({
         locateFile: (path) => {
           if (path.endsWith(".wasm")) {
             return wasmPath;
           }
           return path;
+        },
+        onRuntimeInitialized: () => {
+          resolveRuntimeReady();
         },
         print: (text) => {
           if (options.memory?.initial) {
@@ -357,10 +364,66 @@ async function doLoadWasmModule(options) {
         },
         printErr: (text) => {
           console.error("[Valhalla]", text);
-        }
+        },
+        INITIAL_MEMORY: initialBytes,
+        TOTAL_MEMORY: initialBytes
       });
-      if (module.ready) {
-        await module.ready;
+      await Promise.race([
+        runtimeReady,
+        rawModule.ready ?? Promise.resolve()
+      ]);
+      await new Promise((r) => setTimeout(r, 0));
+      const raw = rawModule;
+      const rawKeys = Object.keys(raw).filter((k) => typeof raw[k] === "function" || k === "HEAPU8" || k === "ready").slice(0, 30);
+      const payloadA = { location: "wasm-loader.ts:afterReady", message: "raw Module after ready", data: { hasCreateRouter: typeof raw.createRouter === "function", hasValhallaRouter: typeof raw.ValhallaRouter === "function", hasLoadTiles: typeof raw.loadTiles === "function", rawKeysSample: rawKeys }, hypothesisId: "A", timestamp: Date.now() };
+      console.warn("[ValhallaDebug]", JSON.stringify(payloadA));
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("valhalla-debug", { detail: payloadA }));
+      fetch("http://127.0.0.1:7243/ingest/8b1ca911-bddf-4de9-aabd-fbcca21e0d3e", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadA) }).catch(() => {
+      });
+      let routerInstance;
+      if (typeof raw.loadTiles === "function") {
+        routerInstance = rawModule;
+      } else if (typeof raw.ValhallaRouter === "function") {
+        routerInstance = new raw.ValhallaRouter();
+      } else if (typeof raw.createRouter === "function") {
+        routerInstance = raw.createRouter();
+      } else {
+        routerInstance = rawModule;
+      }
+      const ri = routerInstance;
+      const riKeys = ri ? Object.keys(ri).filter((k) => typeof ri[k] === "function").slice(0, 20) : [];
+      const payloadB = { location: "wasm-loader.ts:routerInstance", message: "routerInstance", data: { hasLoadTiles: typeof ri?.loadTiles === "function", routerInstanceKeysSample: riKeys, routerInstanceType: typeof routerInstance }, hypothesisId: "B", timestamp: Date.now() };
+      console.warn("[ValhallaDebug]", JSON.stringify(payloadB));
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("valhalla-debug", { detail: payloadB }));
+      fetch("http://127.0.0.1:7243/ingest/8b1ca911-bddf-4de9-aabd-fbcca21e0d3e", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadB) }).catch(() => {
+      });
+      const module = {
+        ...rawModule,
+        loadTiles: typeof ri.loadTiles === "function" ? ri.loadTiles.bind(routerInstance) : rawModule.loadTiles,
+        loadTilesFromBytes: typeof ri.loadTilesFromBytes === "function" ? ri.loadTilesFromBytes.bind(routerInstance) : rawModule.loadTilesFromBytes,
+        route: typeof ri.route === "function" ? ri.route.bind(routerInstance) : rawModule.route,
+        hasTiles: typeof ri.hasTiles === "function" ? ri.hasTiles.bind(routerInstance) : rawModule.hasTiles,
+        clearTiles: typeof ri.clearTiles === "function" ? ri.clearTiles.bind(routerInstance) : rawModule.clearTiles,
+        getVersion: typeof ri.getVersion === "function" ? ri.getVersion.bind(routerInstance) : rawModule.getVersion,
+        getLastError: typeof ri.getLastError === "function" ? ri.getLastError.bind(routerInstance) : rawModule.getLastError,
+        getMemoryUsage: typeof ri.getMemoryUsage === "function" ? ri.getMemoryUsage.bind(routerInstance) : rawModule.getMemoryUsage
+      };
+      const mergedKeys = Object.keys(module).filter((k) => typeof module[k] === "function").slice(0, 25);
+      const payloadC = { location: "wasm-loader.ts:merged", message: "merged module returned", data: { hasLoadTiles: typeof module.loadTiles === "function", mergedKeysSample: mergedKeys }, hypothesisId: "C", timestamp: Date.now() };
+      console.warn("[ValhallaDebug]", JSON.stringify(payloadC));
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("valhalla-debug", { detail: payloadC }));
+      fetch("http://127.0.0.1:7243/ingest/8b1ca911-bddf-4de9-aabd-fbcca21e0d3e", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadC) }).catch(() => {
+      });
+      const merged = module;
+      if (typeof merged.loadTiles !== "function") {
+        const msg = [
+          "Valhalla WASM glue did not expose loadTiles (routing API missing).",
+          `Glue URL: ${resolvedJsGluePath}`,
+          `WASM URL: ${wasmPath}`,
+          "Ensure valhalla.js/valhalla.wasm are from a build that includes the Valhalla C++ bindings (native build with wasm_bindings.cpp).",
+          "In the package repo run: pnpm run build:wasm then pnpm run build. In the app run: pnpm run copy-valhalla-glue."
+        ].join(" ");
+        throw createError(101 /* WASM_INIT_FAILED */, msg);
       }
       reportProgress(onProgress, "init", 100, "WASM ready");
       onReady?.();
@@ -398,14 +461,6 @@ async function doLoadWasmModule(options) {
 function resetWasmModule() {
   wasmModule = null;
   wasmInitPromise = null;
-}
-function copyToWasmMemory(module, data) {
-  const ptr = module._malloc(data.length);
-  module.HEAPU8.set(data, ptr);
-  return ptr;
-}
-function freeWasmMemory(module, ptr) {
-  module._free(ptr);
 }
 
 // src/internal/logger.ts
@@ -446,6 +501,22 @@ var logger = {
 };
 
 // src/valhalla-router.ts
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+function arrayBufferToBinaryString(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 32768;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    binary += String.fromCharCode(...chunk);
+  }
+  return binary;
+}
 var DEFAULT_CONFIG = {
   defaultCosting: "auto",
   defaultUnits: "kilometers",
@@ -510,6 +581,25 @@ var ValhallaRouter = class {
    */
   async loadTiles(tiles, options = {}) {
     this.ensureInitialized();
+    const m = this.module;
+    const modKeys = m ? Object.keys(m).filter((k) => typeof m[k] === "function").slice(0, 25) : [];
+    const payloadD = { location: "valhalla-router.ts:loadTiles", message: "this.module at loadTiles entry", data: { typeofLoadTiles: typeof m?.loadTiles, hasCreateRouter: typeof m?.createRouter === "function", hasValhallaRouter: typeof m?.ValhallaRouter === "function", moduleKeysSample: modKeys }, hypothesisId: "D", timestamp: Date.now() };
+    console.warn("[ValhallaDebug]", JSON.stringify(payloadD));
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("valhalla-debug", { detail: payloadD }));
+    fetch("http://127.0.0.1:7243/ingest/8b1ca911-bddf-4de9-aabd-fbcca21e0d3e", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadD) }).catch(() => {
+    });
+    if (typeof m?.loadTiles !== "function") {
+      let instance = null;
+      if (typeof m?.ValhallaRouter === "function") {
+        instance = new m.ValhallaRouter();
+      } else if (typeof m?.createRouter === "function") {
+        const created = m.createRouter();
+        instance = created && typeof created === "object" && typeof created.loadTiles === "function" ? created : null;
+      }
+      if (instance && typeof instance.loadTiles === "function") {
+        this.module = Object.assign({}, m, instance);
+      }
+    }
     const { onProgress, validate = true, regionId } = options;
     logger.info("Loading tiles...", { size: tiles.byteLength, regionId });
     onProgress?.({
@@ -519,8 +609,6 @@ var ValhallaRouter = class {
       bytesTotal: tiles.byteLength
     });
     try {
-      const tilesArray = new Uint8Array(tiles);
-      const ptr = copyToWasmMemory(this.module, tilesArray);
       onProgress?.({
         phase: "tiles",
         percent: 50,
@@ -528,8 +616,60 @@ var ValhallaRouter = class {
         bytesLoaded: tiles.byteLength,
         bytesTotal: tiles.byteLength
       });
-      const success = this.module.loadTiles(tiles, tiles.byteLength);
-      freeWasmMemory(this.module, ptr);
+      let success = false;
+      let preferredError = null;
+      if (typeof this.module.loadTilesFromBytes === "function") {
+        try {
+          success = this.module.loadTilesFromBytes(new Uint8Array(tiles));
+        } catch (e) {
+          preferredError = e;
+        }
+      }
+      if (!success) {
+        const base64 = arrayBufferToBase64(tiles);
+        let base64Error = null;
+        try {
+          success = this.module.loadTiles(base64);
+        } catch (e) {
+          base64Error = e;
+          if (!preferredError) preferredError = e;
+        }
+        if (!success) {
+          const rawBinary = arrayBufferToBinaryString(tiles);
+          try {
+            const fallbackSuccess = this.module.loadTiles(rawBinary);
+            if (fallbackSuccess) {
+              success = true;
+              logger.warn(
+                "loadTiles succeeded via raw-binary fallback; native binding likely expects direct bytes"
+              );
+            }
+          } catch (fallbackError) {
+            if (!preferredError) preferredError = fallbackError;
+            if (base64Error) throw base64Error;
+            throw fallbackError;
+          }
+        }
+      }
+      if (!success && preferredError) {
+        throw preferredError;
+      }
+      if (!success) {
+        const nativeDetail = typeof this.module.getLastError === "function" ? this.module.getLastError() || "" : "";
+        if (nativeDetail) {
+          throw createError(
+            201 /* TILES_LOAD_FAILED */,
+            `Failed to load routing tiles: ${nativeDetail}`
+          );
+        }
+      }
+      onProgress?.({
+        phase: "tiles",
+        percent: 75,
+        message: "Tiles loaded, validating...",
+        bytesLoaded: tiles.byteLength,
+        bytesTotal: tiles.byteLength
+      });
       if (!success) {
         throw createError(201 /* TILES_LOAD_FAILED */);
       }
@@ -553,13 +693,11 @@ var ValhallaRouter = class {
       logger.info("Tiles loaded successfully", { regionId });
     } catch (error) {
       logger.error("Failed to load tiles:", error);
+      const message = error instanceof ValhallaError ? error.message : error instanceof Error ? error.message : error != null && typeof error.message === "string" ? error.message : String(error);
       if (error instanceof ValhallaError) {
         throw error;
       }
-      throw createError(
-        201 /* TILES_LOAD_FAILED */,
-        error instanceof Error ? error.message : "Unknown error loading tiles"
-      );
+      throw createError(201 /* TILES_LOAD_FAILED */, message || "Unknown error loading tiles");
     }
   }
   /**
@@ -601,8 +739,7 @@ var ValhallaRouter = class {
       let loaded = 0;
       while (true) {
         const { done, value } = await reader.read();
-        if (done)
-          break;
+        if (done) break;
         chunks.push(value);
         loaded += value.length;
         onProgress?.({
@@ -882,14 +1019,10 @@ function polylineBounds(encoded, format = "polyline6") {
   let maxLng = -Infinity;
   let maxLat = -Infinity;
   for (const [lng, lat] of coordinates) {
-    if (lng < minLng)
-      minLng = lng;
-    if (lng > maxLng)
-      maxLng = lng;
-    if (lat < minLat)
-      minLat = lat;
-    if (lat > maxLat)
-      maxLat = lat;
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
   }
   return [minLng, minLat, maxLng, maxLat];
 }
@@ -1018,14 +1151,10 @@ function boundingBox(locations, padding = 0) {
   let minLon = Infinity;
   let maxLon = -Infinity;
   for (const loc of locations) {
-    if (loc.lat < minLat)
-      minLat = loc.lat;
-    if (loc.lat > maxLat)
-      maxLat = loc.lat;
-    if (loc.lon < minLon)
-      minLon = loc.lon;
-    if (loc.lon > maxLon)
-      maxLon = loc.lon;
+    if (loc.lat < minLat) minLat = loc.lat;
+    if (loc.lat > maxLat) maxLat = loc.lat;
+    if (loc.lon < minLon) minLon = loc.lon;
+    if (loc.lon > maxLon) maxLon = loc.lon;
   }
   if (padding > 0) {
     const centerLat = (minLat + maxLat) / 2;
@@ -1079,7 +1208,8 @@ function formatDuration(seconds) {
 
 // src/index.ts
 var VERSION = "0.1.0";
+var GLUE_VERSION = "2026-02-14-1";
 
-export { DEFAULT_WASM_PATHS, VERSION, ValhallaError, ValhallaErrorCode, ValhallaRouter, bboxCenter, bearing, boundingBox, createError, createRouter, decodePolyline, destinationPoint, distanceBetweenLocations, encodePolyline, formatDistance, formatDuration, geoJSONToPolyline, getWasmPaths, haversineDistance, isBundlerEnvironment, isValhallaError, isWithinBounds, isWorkerEnvironment, midpoint, polylineBounds, polylineToGeoJSON, simplifyPolyline, validateWasmPaths };
-//# sourceMappingURL=out.js.map
+export { DEFAULT_WASM_PATHS, GLUE_VERSION, VERSION, ValhallaError, ValhallaErrorCode, ValhallaRouter, bboxCenter, bearing, boundingBox, createError, createRouter, decodePolyline, destinationPoint, distanceBetweenLocations, encodePolyline, formatDistance, formatDuration, geoJSONToPolyline, getWasmPaths, haversineDistance, isBundlerEnvironment, isValhallaError, isWithinBounds, isWorkerEnvironment, midpoint, polylineBounds, polylineToGeoJSON, simplifyPolyline, validateWasmPaths };
+//# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map
