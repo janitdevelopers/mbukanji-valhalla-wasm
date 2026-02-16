@@ -31,7 +31,7 @@ git commit -m "chore(test): add built dist and wasm for install-from-GitHub"
 git push -u origin test
 ```
 
-**Requirements:** Docker (for `build:wasm`). The script runs `pnpm run build:wasm` then `pnpm run build`, then stages `dist/` and `wasm/valhalla.*` with `git add -f` so they are committed despite `.gitignore`.
+**Requirements:** Docker (for `build:wasm`). The build uses the Docker image name **`native-01`** (set in `native/build-wasm.sh`). The script runs `pnpm run build:wasm` then `pnpm run build`, then stages `dist/` and `wasm/valhalla.*` with `git add -f` so they are committed despite `.gitignore`.
 
 ## Using the test branch in JanPAMS
 
