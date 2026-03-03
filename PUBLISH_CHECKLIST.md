@@ -2,6 +2,8 @@
 
 Use this checklist before publishing to npm.
 
+**CI:** A GitHub Actions workflow (`.github/workflows/deploy-npm.yml`) can publish automatically when you create a GitHub Release, or manually via *Actions → Deploy to npm → Run workflow*. It builds WASM in Docker, runs tests and verification, then publishes. Requires repository secret `DEPLOY_TO_NPM` (npm token with Publish scope).
+
 ---
 
 ## Pre-Publishing Checklist

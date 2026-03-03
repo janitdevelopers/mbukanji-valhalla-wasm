@@ -1,7 +1,19 @@
-# Deploy package to npm.
-# Option B: Build WASM in CI with Docker, then build package and publish.
-# Triggers: GitHub Release published, or manual "Run workflow".
-# Requires: Repository secret DEPLOY_TO_NPM (npm token with publish access).
+# Publish @jansoft/mbujkanji-valhalla-wasm to npm.
+#
+# Builds WASM in Docker, runs tests and verification, then publishes.
+#
+# Triggers:
+#   - GitHub Release published: run workflow, then publish (version must match release tag)
+#   - Manual: Actions → "Deploy to npm" → Run workflow
+#
+# Setup:
+#   - Add repository secret DEPLOY_TO_NPM: npm token with "Automation" or
+#     "Publish" scope (https://www.npmjs.com/settings/~youruser/tokens).
+#
+# Release flow:
+#   1. Bump version in package.json (e.g. npm version patch)
+#   2. Create a GitHub Release with tag v<version> (e.g. v0.1.2)
+#   3. This workflow runs; it verifies the release tag matches package.json, then publishes.
 
 name: Deploy to npm
 
@@ -79,6 +91,19 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      # On release trigger, ensure release tag matches package.json version
+      - name: Verify version (release only)
+        if: github.event_name == 'release'
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${TAG#v}"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Release tag $TAG does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+          echo "Version OK: $PKG_VERSION"
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -108,6 +133,9 @@ jobs:
 
       - name: Run tests
         run: pnpm run test:run
+
+      - name: Publish dry-run
+        run: pnpm publish --dry-run
 
       - name: Publish to npm
         run: pnpm publish --provenance --access public --no-git-checks

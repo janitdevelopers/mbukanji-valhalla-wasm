@@ -281,6 +281,11 @@ console.log(paths.wasm, paths.js);
 - Use a **bundler** (Vite, Webpack, Next.js) so WASM is served from the same origin, or copy `valhalla.wasm` and `valhalla.js` to your `public/` and pass explicit paths in `init({ wasmPath, jsGluePath })`.
 - Ensure the server (or CDN) allows requests to those assets (CORS if cross-origin).
 
+### “Glue version check” shows wrong sizes (e.g. WASM 8 bytes, JS 603 bytes)
+
+- **Cause**: In a Vite dev server (especially in a monorepo), requests to the package’s `dist/valhalla.wasm` and `dist/valhalla.js` may not return the real files, so a size check sees tiny responses.
+- **What to do**: See **[Vite and Monorepo Setup](./VITE_AND_MONOREPO.md)** for `server.fs.allow`, optional env vars for expected sizes, and copying WASM to `public/`.
+
 ### Path resolution in workers or monorepos
 
 - If auto-detection fails in a Web Worker or monorepo, pass paths explicitly:
