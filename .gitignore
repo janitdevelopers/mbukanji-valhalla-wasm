@@ -7,8 +7,10 @@ dist/
 *.tsbuildinfo
 
 # WASM artifacts (built externally)
-wasm/*.wasm
-wasm/*.js
+# valhalla.wasm and valhalla.js are committed so CI can publish without a full C++ rebuild.
+# All other generated/large wasm artefacts remain ignored.
+!wasm/valhalla.wasm
+!wasm/valhalla.js
 wasm/*.data
 artifacts/
 

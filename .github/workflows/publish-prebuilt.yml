@@ -1,0 +1,107 @@
+# Publish @jansoft/mbujkanji-valhalla-wasm to npm using committed wasm/ files.
+#
+# Use this when the WASM binary has not changed and only JS/TS source was updated.
+# The wasm/valhalla.wasm and wasm/valhalla.js files must already be committed to the repo.
+#
+# Steps:
+#   1. Update version in package.json and commit/push to main.
+#   2. Run this workflow manually via Actions → "Publish pre-built package" → Run workflow.
+#
+# Requires repository secret: DEPLOY_TO_NPM (npm token with Publish/Automation scope).
+
+name: Publish pre-built package
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run only (no actual publish)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Build and publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify committed WASM files present
+        run: |
+          test -f wasm/valhalla.wasm || (echo "::error::wasm/valhalla.wasm not found in repo. Commit it first." && exit 1)
+          test -f wasm/valhalla.js   || (echo "::error::wasm/valhalla.js not found in repo. Commit it first."   && exit 1)
+          WASM_SIZE=$(stat -c%s wasm/valhalla.wasm)
+          JS_SIZE=$(stat -c%s wasm/valhalla.js)
+          echo "valhalla.wasm: ${WASM_SIZE} bytes"
+          echo "valhalla.js:   ${JS_SIZE} bytes"
+          [ "$WASM_SIZE" -gt 100000 ] || (echo "::error::valhalla.wasm looks too small — may be corrupted." && exit 1)
+          [ "$JS_SIZE"   -gt 10000  ] || (echo "::error::valhalla.js looks too small — may be corrupted."  && exit 1)
+          echo "WASM files OK"
+
+      - name: Verify munmap EBADF patch is present
+        run: |
+          grep -q "e.errno===8||e.errno===9" wasm/valhalla.js \
+            || (echo "::error::munmap EBADF patch missing from wasm/valhalla.js" && exit 1)
+          echo "munmap patch OK"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build package (TS compile + copy wasm files to dist/)
+        run: pnpm run build
+
+      - name: Verify dist output
+        run: |
+          node scripts/verify-wasm.js
+          test -f dist/index.js   || (echo "::error::dist/index.js missing"   && exit 1)
+          test -f dist/index.cjs  || (echo "::error::dist/index.cjs missing"  && exit 1)
+          test -f dist/valhalla.wasm || (echo "::error::dist/valhalla.wasm missing" && exit 1)
+          test -f dist/valhalla.js   || (echo "::error::dist/valhalla.js missing"   && exit 1)
+          echo "dist/ OK"
+
+      - name: Run tests
+        run: pnpm run test:run
+
+      - name: Show version being published
+        run: node -p "require('./package.json').version"
+
+      - name: Publish dry-run
+        run: pnpm publish --dry-run --no-git-checks
+
+      - name: Publish to npm
+        if: ${{ inputs.dry_run == 'false' }}
+        run: pnpm publish --provenance --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.DEPLOY_TO_NPM }}
